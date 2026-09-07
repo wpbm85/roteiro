@@ -7,7 +7,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -18,23 +18,51 @@
 </head>
 <body>
 
+  <!-- MODAL DE LOGIN SUPABASE -->
+  <div class="modal active" id="modal-login" style="z-index: 999; background: #f8fafc;">
+    <div class="modal-content" style="margin:auto; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: var(--primary);"></i>
+        <h2 style="margin-top: 10px; color: var(--text-main);">Europa 2027</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Acesso Restrito</p>
+      </div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="login-email" class="form-control" required placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="login-senha" class="form-control" required placeholder="******">
+        </div>
+        <div id="login-error" style="color: red; font-size: 0.8rem; text-align: center; margin-bottom:10px; display:none;">Credenciais inválidas.</div>
+        <button type="submit" class="submit-btn" id="btn-login-submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
   <header>
     <div class="brand">
-      <i class="fa-solid fa-plane-departure"></i>
-      <span>Europa 2027</span>
+      <i class="fa-solid fa-plane-departure"></i> <span>Europa 2027</span>
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick="exportToXLSX()" title="Exportar XLSX"><i class="fa-solid fa-file-excel"></i></button>
-      <button class="icon-btn" id="login-btn" onclick="toggleAuth()" title="Login"><i class="fa-solid fa-user-lock"></i></button>
+      <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container" id="main-content" style="display:none;">
     
     <!-- ABA 1: ROTEIRO -->
     <section id="tab-roteiro" class="tab-content active">
       <div class="days-carousel" id="days-carousel-container"></div>
       <div class="city-filters" id="city-bar"></div>
+      
+      <div class="filter-toggles">
+        <button class="toggle-btn active" id="btn-ver-tudo" onclick="setDoneFilter('ALL')">Ver Tudo</button>
+        <button class="toggle-btn" id="btn-ver-falta" onclick="setDoneFilter('PENDING')">O Que Falta</button>
+      </div>
+      
       <div id="timeline-container"></div>
     </section>
 
@@ -44,15 +72,14 @@
         <span><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
         <input type="number" step="0.01" id="euro-input" value="5.98" onchange="updateEuro()">
       </div>
-      
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-title">Projetado Total</div>
+          <div class="metric-title">Projetado (Orçamento)</div>
           <div class="metric-val" id="metric-proj-eur">€ 0,00</div>
           <div class="metric-sub" id="metric-proj-brl">R$ 0,00</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">Efetivado / Pago</div>
+          <div class="metric-title">Efetivado (PAGO)</div>
           <div class="metric-val" id="metric-efet-eur" style="color: #059669;">€ 0,00</div>
           <div class="metric-sub" id="metric-efet-brl">R$ 0,00</div>
         </div>
@@ -60,30 +87,40 @@
       <div id="orcamento-list" class="list-container"></div>
     </section>
 
-    <!-- ABA 3: GASTOS DIÁRIOS -->
+    <!-- ABA 3: GASTOS -->
     <section id="tab-gastos" class="tab-content">
-      <div class="section-title"><i class="fa-solid fa-receipt"></i> Lançamento de Gastos (Na Viagem)</div>
+      <div class="section-title"><i class="fa-solid fa-receipt"></i> Lançamento de Gastos Reais</div>
       <div id="gastos-list" class="list-container"></div>
     </section>
-
   </main>
 
-  <!-- Botão Flutuante Dinâmico -->
-  <button class="fab" onclick="openContextModal()"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab" id="fab-btn" onclick="openContextModal()" style="display:none;"><i class="fa-solid fa-plus"></i></button>
 
   <!-- MODAL: ROTEIRO -->
   <div class="modal" id="modal-roteiro">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title">Nova Atração</div>
+        <div class="modal-title">Atração</div>
         <button class="close-btn" onclick="closeModal('modal-roteiro')">&times;</button>
       </div>
       <form onsubmit="handleRoteiroSubmit(event)">
-        <div class="form-group"><label>Dia (Ex: 10/05 seg)</label><input type="text" id="rot-dia" class="form-control" required></div>
-        <div class="form-group"><label>Cidade</label><input type="text" id="rot-cidade" class="form-control" required></div>
+        <input type="hidden" id="rot-id">
+        <div class="form-group"><label>Dia</label><select id="rot-dia" class="form-control" required></select></div>
+        <div class="form-group"><label>Cidade</label><select id="rot-cidade" class="form-control" required></select></div>
+        <div class="form-group"><label>Categoria</label>
+          <select id="rot-categoria" class="form-control">
+            <option value="MUSEU">MUSEU</option><option value="HOTEL">HOTEL</option>
+            <option value="RESTAURANTE">RESTAURANTE</option><option value="MARCO">MARCO</option>
+            <option value="TREM">TREM / ESTAÇÃO</option><option value="OUTRO">OUTRO</option>
+          </select>
+        </div>
         <div class="form-group"><label>Atração</label><input type="text" id="rot-atracao" class="form-control" required></div>
-        <div class="form-group"><label>Categoria</label><input type="text" id="rot-categoria" class="form-control"></div>
+        <div class="form-group"><label>Região</label><input type="text" id="rot-regiao" class="form-control"></div>
+        <div class="form-group"><label>Horário</label><input type="text" id="rot-horario" class="form-control"></div>
+        <div class="form-group"><label>Endereço</label><input type="text" id="rot-endereco" class="form-control"></div>
         <div class="form-group"><label>Custo (€)</label><input type="number" step="0.01" id="rot-custo" class="form-control"></div>
+        <div class="form-group"><label>Link Maps</label><input type="url" id="rot-link" class="form-control"></div>
+        <div class="form-group"><label>Observações</label><input type="text" id="rot-obs" class="form-control"></div>
         <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>
@@ -97,11 +134,21 @@
         <button class="close-btn" onclick="closeModal('modal-orcamento')">&times;</button>
       </div>
       <form onsubmit="handleOrcamentoSubmit(event)">
-        <div class="form-group"><label>Categoria (Ex: VOO, HOTEL)</label><input type="text" id="orc-cat" class="form-control" required></div>
+        <div class="form-group"><label>Categoria</label>
+          <select id="orc-cat" class="form-control" required>
+            <option value="VOO">VOO</option><option value="HOTEL">HOTEL</option><option value="TREM">TREM</option>
+            <option value="ALIMENTAÇÃO">ALIMENTAÇÃO</option><option value="INGRESSOS">INGRESSOS</option>
+            <option value="TRANSPORTE">TRANSPORTE</option>
+          </select>
+        </div>
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
-        <div class="form-group"><label>Projetado (€)</label><input type="number" step="0.01" id="orc-proj" class="form-control"></div>
-        <div class="form-group"><label>Efetivado (€)</label><input type="number" step="0.01" id="orc-efet" class="form-control"></div>
-        <div class="form-group"><label>Status (PROJETADO / PAGO)</label><input type="text" id="orc-status" class="form-control" value="PROJETADO"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="orc-status" class="form-control"><option value="PROJETADO">PROJETADO</option><option value="A PAGAR">A PAGAR</option><option value="PAGO">PAGO</option></select>
+        </div>
+        <div class="form-group"><label>Moeda de Referência</label>
+          <select id="orc-moeda" class="form-control"><option value="EUR">Euros (€)</option><option value="BRL">Reais (R$)</option></select>
+        </div>
+        <div class="form-group"><label>Valor Projetado</label><input type="number" step="0.01" id="orc-proj" class="form-control"></div>
         <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>
@@ -111,20 +158,29 @@
   <div class="modal" id="modal-gastos">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title">Lançar Gasto</div>
+        <div class="modal-title">Lançar Gasto Efetivado</div>
         <button class="close-btn" onclick="closeModal('modal-gastos')">&times;</button>
       </div>
       <form onsubmit="handleGastosSubmit(event)">
-        <div class="form-group"><label>Data</label><input type="text" id="gas-data" class="form-control" required></div>
-        <div class="form-group"><label>Cidade</label><input type="text" id="gas-cidade" class="form-control" required></div>
-        <div class="form-group"><label>Descrição do Gasto</label><input type="text" id="gas-desc" class="form-control" required></div>
-        <div class="form-group"><label>Valor (€)</label><input type="number" step="0.01" id="gas-valor" class="form-control" required></div>
+        <div class="form-group"><label>Data do Gasto</label><select id="gas-data" class="form-control" required></select></div>
+        <div class="form-group"><label>Cidade</label><select id="gas-cidade" class="form-control" required></select></div>
+        <div class="form-group"><label>Categoria</label>
+          <select id="gas-cat" class="form-control" required>
+            <option value="ALIMENTAÇÃO">ALIMENTAÇÃO</option><option value="MERCADO">MERCADO</option><option value="COMPRAS">COMPRAS</option>
+            <option value="TRANSPORTE">TRANSPORTE URBANO</option><option value="INGRESSOS">INGRESSOS EXTRA</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Descrição do Item</label><input type="text" id="gas-item" class="form-control" required></div>
+        <div class="form-group"><label>Moeda Paga</label>
+          <select id="gas-moeda" class="form-control"><option value="EUR">Euros (€)</option><option value="BRL">Reais (R$)</option></select>
+        </div>
+        <div class="form-group"><label>Valor Gasto</label><input type="number" step="0.01" id="gas-valor" class="form-control" required></div>
         <button type="submit" class="submit-btn">Lançar</button>
       </form>
     </div>
   </div>
 
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" id="bottom-nav" style="display:none;">
     <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Roteiro</span></button>
     <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
