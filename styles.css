@@ -12,7 +12,6 @@
   --cat-marco: #059669;
 }
 
-/* MODO ESCURO AUTOMÁTICO */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg-main: #0f172a;
@@ -37,7 +36,10 @@ header {
   position: sticky; top: 0; z-index: 100;
 }
 
-.brand { font-size: 1.2rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+.brand { font-size: 1.2rem; font-weight: 800; color: #ffffff !important; display: flex; align-items: center; gap: 8px; }
+.brand-icon { color: #ffffff !important; font-size: 1.3rem; }
+.brand-title { color: #ffffff !important; }
+
 .header-actions { display: flex; gap: 8px; }
 .icon-btn { background: none; border: none; font-size: 1.1rem; color: var(--text-main); padding: 8px; cursor: pointer; }
 
@@ -82,6 +84,23 @@ header {
 .card-title { font-size: 1rem; font-weight: 700; margin: 6px 0; color: var(--text-main); }
 .card-address { font-size: 0.8rem; color: var(--text-muted); }
 .card-obs { font-size: 0.75rem; color: #d97706; margin-top: 4px; font-style: italic; }
+
+/* LAYOUT DE TRENS / ESTAÇÃO */
+.train-strip {
+  background: #f0f9ff; border-left: 4px solid #0284c7; padding: 12px;
+  border-radius: 10px; margin-bottom: 12px; display: flex;
+  justify-content: space-between; align-items: center; gap: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  .train-strip { background: #0f172a !important; border-left: 4px solid #38bdf8 !important; }
+}
+
+.train-info { flex: 1; min-width: 0; }
+.train-title { font-weight: 800; color: #0284c7; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-color-scheme: dark) {
+  .train-title { color: #38bdf8 !important; }
+}
+.train-route { font-size: 0.8rem; opacity: 0.8; margin-top: 2px; }
 
 .btn-act { background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
 .btn-act.done-btn.active { background: #059669; color: #fff; border-color: #059669; }

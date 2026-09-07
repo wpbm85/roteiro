@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Europa 2027</title>
   
-  <!-- ÍCONES E ATALHO PARA CELULAR / CHROME -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%232563eb' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%232563eb' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%23ffffff' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%23ffffff' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,9 +29,9 @@
   <div class="modal active" id="modal-login" style="z-index: 999;">
     <div class="modal-content" style="margin:auto; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
       <div style="text-align: center; margin-bottom: 20px;">
-        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: var(--primary);"></i>
-        <h2 style="margin-top: 10px;">Europa 2027</h2>
-        <p style="font-size: 0.85rem; opacity:0.8;">Acesso Restrito</p>
+        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: #ffffff;"></i>
+        <h2 style="margin-top: 10px; color: #ffffff;">Europa 2027</h2>
+        <p style="font-size: 0.85rem; opacity:0.8; color: #cbd5e1;">Acesso Restrito</p>
       </div>
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
@@ -50,10 +50,9 @@
 
   <header>
     <div class="brand">
-      <i class="fa-solid fa-plane-departure"></i> <span>Europa 2027</span>
+      <i class="fa-solid fa-plane-departure brand-icon"></i> <span class="brand-title">Europa 2027</span>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar XLSX"><i class="fa-solid fa-file-excel"></i></button>
       <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
     </div>
   </header>
@@ -153,18 +152,18 @@
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
         <div class="form-group"><label>Status</label>
           <select id="orc-status" class="form-control">
-            <option value="PROJETADO">PROJETADO</option>
-            <option value="A PAGAR">A PAGAR</option>
             <option value="PAGO">PAGO</option>
+            <option value="A PAGAR">A PAGAR</option>
+            <option value="PROJETADO">PROJETADO</option>
           </select>
         </div>
-        <div class="form-group"><label>Moeda de Referência</label>
+        <div class="form-group"><label>Moeda do Valor Informado</label>
           <select id="orc-moeda" class="form-control">
             <option value="EUR">Euros (€)</option>
             <option value="BRL">Reais (R$)</option>
           </select>
         </div>
-        <div class="form-group"><label>Valor Projetado (€)</label><input type="number" step="0.01" id="orc-proj" class="form-control" required></div>
+        <div class="form-group"><label>Valor Digitado</label><input type="number" step="0.01" id="orc-proj" class="form-control" required></div>
         <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>

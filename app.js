@@ -296,7 +296,7 @@ function renderTimeline() {
         <div class="train-strip" data-id="${item.id}">
           <div class="train-info">
             <span class="train-title"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
-            <div class="train-route" style="font-size:0.8rem;"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
+            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
             <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
@@ -342,12 +342,13 @@ function renderTimeline() {
       </div>`;
   });
 
+  // Reordenar Habilitado para todos os dias no celular
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
-    delay: 150,
+    delay: 100,
     delayOnTouchOnly: true,
-    touchStartThreshold: 5,
+    touchStartThreshold: 3,
     onEnd: async function () {
       const cards = container.children;
       for (let index = 0; index < cards.length; index++) {
@@ -406,15 +407,20 @@ function renderOrcamento() {
   let projTot = 0, efetTot = 0;
   let catTotals = {};
 
-  orcamentoData.forEach(item => {
-    let projEur = parseFloat(item.projetado_eur) || 0;
+  // Ordenação prioritária: 1º PAGO, 2º A PAGAR, 3º PROJETADO
+  const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
+  let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
+
+  sortedOrcamento.forEach(item => {
+    let rawVal = parseFloat(item.projetado_eur) || 0;
+    let projEur = item.moeda === "BRL" ? (rawVal / euroMedio) : rawVal;
     
-    // Procura lançamentos de gastos efetuados para este item específico
-    let gastosDaCategoria = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
+    // Soma gastos da aba GASTOS correspondentes a essa Categoria / Item
+    let gastosDoItem = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
     let calcEfetEur = 0;
     
-    if (gastosDaCategoria.length > 0) {
-      gastosDaCategoria.forEach(g => {
+    if (gastosDoItem.length > 0) {
+      gastosDoItem.forEach(g => {
         calcEfetEur += g.moeda === "BRL" ? (g.valor_brl / euroMedio) : g.valor_eur;
       });
     } else {
@@ -487,12 +493,14 @@ function renderSubtotaisOrcamento(catTotals) {
     let projBrl = vals.proj * euroMedio;
     let efetBrl = vals.efet * euroMedio;
 
+    let isEquals = Math.abs(vals.proj - vals.efet) < 0.05;
+
     html += `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color); font-size:0.85rem;">
         <span style="font-weight:700;">${cat}</span>
         <div style="text-align:right;">
           <div style="color:#059669; font-weight:800;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; font-weight:500; opacity:0.8;">(R$ ${efetBrl.toFixed(2)})</span></div>
-          <div style="font-size:0.75rem; color:#ea580c; font-weight:600;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>
+          ${!isEquals ? `<div style="font-size:0.75rem; color:#ea580c; font-weight:600;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>` : ''}
         </div>
       </div>`;
   }
@@ -507,7 +515,7 @@ function editOrcamento(id) {
   document.getElementById("orc-cat").value = item.categoria;
   document.getElementById("orc-item").value = item.item;
   document.getElementById("orc-status").value = item.status;
-  document.getElementById("orc-moeda").value = item.moeda;
+  document.getElementById("orc-moeda").value = item.moeda || "EUR";
   document.getElementById("orc-proj").value = item.projetado_eur;
   document.getElementById("modal-orcamento").classList.add("active");
 }
@@ -539,10 +547,15 @@ function renderGastos() {
   const container = document.getElementById("gastos-list");
   if(!container) return;
   container.innerHTML = "";
+  let catGastos = {};
+
   gastosData.forEach(item => {
     let eur = item.moeda === "BRL" ? (item.valor_brl / euroMedio) : item.valor_eur;
     let brl = item.moeda === "EUR" ? (item.valor_eur * euroMedio) : item.valor_brl;
     
+    if(!catGastos[item.categoria]) catGastos[item.categoria] = 0;
+    catGastos[item.categoria] += eur;
+
     container.innerHTML += `
       <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
@@ -559,6 +572,37 @@ function renderGastos() {
         </div>
       </div>`;
   });
+
+  renderSubtotaisGastos(catGastos);
+}
+
+function renderSubtotaisGastos(catGastos) {
+  let subContainer = document.getElementById("gastos-subtotais");
+  const tabGas = document.getElementById("tab-gastos");
+  if (!tabGas) return;
+
+  if (!subContainer) {
+    subContainer = document.createElement("div");
+    subContainer.id = "gastos-subtotais";
+    subContainer.style.marginTop = "20px";
+    subContainer.style.padding = "14px";
+    subContainer.style.borderRadius = "12px";
+    subContainer.className = "list-item";
+    tabGas.appendChild(subContainer);
+  }
+
+  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:800; letter-spacing:0.5px;">GASTOS POR CATEGORIA</h4>`;
+  for (const [cat, valEur] of Object.entries(catGastos)) {
+    let valBrl = valEur * euroMedio;
+    html += `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color); font-size:0.85rem;">
+        <span style="font-weight:700;">${cat}</span>
+        <div style="text-align:right;">
+          <div style="color:#059669; font-weight:800;">€ ${valEur.toFixed(2)} <span style="font-size:0.75rem; font-weight:500; opacity:0.8;">(R$ ${valBrl.toFixed(2)})</span></div>
+        </div>
+      </div>`;
+  }
+  subContainer.innerHTML = html;
 }
 
 function editGasto(id) {
@@ -570,7 +614,7 @@ function editGasto(id) {
   document.getElementById("gas-cidade").value = item.cidade;
   document.getElementById("gas-cat").value = item.categoria;
   document.getElementById("gas-item").value = item.item;
-  document.getElementById("gas-moeda").value = item.moeda;
+  document.getElementById("gas-moeda").value = item.moeda || "EUR";
   document.getElementById("gas-valor").value = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
   document.getElementById("modal-gastos").classList.add("active");
 }
