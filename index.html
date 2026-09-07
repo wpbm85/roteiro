@@ -8,11 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- FontAwesome para Ícones Clipart / Line Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Libraries: SheetJS (Excel) + SortableJS (Drag & Drop) + Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -21,157 +18,118 @@
 </head>
 <body>
 
-  <!-- Topbar Header -->
   <header>
     <div class="brand">
       <i class="fa-solid fa-plane-departure"></i>
       <span>Europa 2027</span>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar XLSX">
-        <i class="fa-solid fa-file-excel"></i>
-      </button>
-      <button class="icon-btn" id="login-btn" onclick="toggleAuth()" title="Login">
-        <i class="fa-solid fa-user-lock"></i>
-      </button>
+      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar XLSX"><i class="fa-solid fa-file-excel"></i></button>
+      <button class="icon-btn" id="login-btn" onclick="toggleAuth()" title="Login"><i class="fa-solid fa-user-lock"></i></button>
     </div>
   </header>
 
   <main class="container">
     
-    <!-- Filtros de Cidade -->
-    <div class="city-filters" id="city-bar">
-      <button class="chip active" onclick="filterCity('TODAS', this)">Todas</button>
-      <button class="chip" onclick="filterCity('AMSTERDAM', this)">Amsterdam</button>
-      <button class="chip" onclick="filterCity('BRUXELAS', this)">Bruxelas</button>
-      <button class="chip" onclick="filterCity('PARIS', this)">Paris</button>
-      <button class="chip" onclick="filterCity('ROTERDAM', this)">Rotterdam</button>
-    </div>
-
-    <!-- Seção Roteiro (Timeline por Dias) -->
+    <!-- ABA 1: ROTEIRO -->
     <section id="tab-roteiro" class="tab-content active">
-      <div id="timeline-container">
-        <!-- Renderizado dinamicamente via JS agrupado por dias -->
-      </div>
+      <div class="days-carousel" id="days-carousel-container"></div>
+      <div class="city-filters" id="city-bar"></div>
+      <div id="timeline-container"></div>
     </section>
 
-    <!-- Seção Orçamento -->
+    <!-- ABA 2: ORÇAMENTO -->
     <section id="tab-orcamento" class="tab-content">
-      <div class="section-title">📊 Resumo do Orçamento</div>
+      <div class="euro-config">
+        <span><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
+        <input type="number" step="0.01" id="euro-input" value="5.98" onchange="updateEuro()">
+      </div>
+      
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-title">Projetado Total</div>
-          <div class="metric-val" id="metric-proj">€ 0,00</div>
+          <div class="metric-val" id="metric-proj-eur">€ 0,00</div>
           <div class="metric-sub" id="metric-proj-brl">R$ 0,00</div>
         </div>
         <div class="metric-card">
           <div class="metric-title">Efetivado / Pago</div>
-          <div class="metric-val" id="metric-efet" style="color: #059669;">€ 0,00</div>
+          <div class="metric-val" id="metric-efet-eur" style="color: #059669;">€ 0,00</div>
           <div class="metric-sub" id="metric-efet-brl">R$ 0,00</div>
         </div>
       </div>
-      <div id="orcamento-list"></div>
+      <div id="orcamento-list" class="list-container"></div>
     </section>
 
-    <!-- Seção Gastos Diários -->
+    <!-- ABA 3: GASTOS DIÁRIOS -->
     <section id="tab-gastos" class="tab-content">
-      <div class="section-title">☕ Lançamentos de Gastos</div>
-      <div id="gastos-list"></div>
+      <div class="section-title"><i class="fa-solid fa-receipt"></i> Lançamento de Gastos (Na Viagem)</div>
+      <div id="gastos-list" class="list-container"></div>
     </section>
 
   </main>
 
-  <!-- Botão Flutuante + -->
-  <button class="fab" onclick="openModal()"><i class="fa-solid fa-plus"></i></button>
+  <!-- Botão Flutuante Dinâmico -->
+  <button class="fab" onclick="openContextModal()"><i class="fa-solid fa-plus"></i></button>
 
-  <!-- Modal Adicionar Atração -->
-  <div class="modal" id="add-modal">
+  <!-- MODAL: ROTEIRO -->
+  <div class="modal" id="modal-roteiro">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title">Nova Atração / Item</div>
-        <button class="close-btn" onclick="closeModal()">&times;</button>
+        <div class="modal-title">Nova Atração</div>
+        <button class="close-btn" onclick="closeModal('modal-roteiro')">&times;</button>
       </div>
-      <form id="add-form" onsubmit="handleFormSubmit(event)">
-        <div class="form-group">
-          <label>Data</label>
-          <input type="date" class="form-control" id="form-data" required value="2027-05-10">
-        </div>
-        <div class="form-group">
-          <label>Cidade</label>
-          <select class="form-control" id="form-cidade" required>
-            <option value="AMSTERDAM">Amsterdam</option>
-            <option value="BRUXELAS">Bruxelas</option>
-            <option value="PARIS">Paris</option>
-            <option value="ROTERDAM">Rotterdam</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Atração / Local</label>
-          <input type="text" class="form-control" id="form-atracao" placeholder="Ex: Rijksmuseum" required>
-        </div>
-        <div class="form-group">
-          <label>Categoria</label>
-          <select class="form-control" id="form-categoria">
-            <option value="MUSEU">Museu</option>
-            <option value="RESTAURANTE">Restaurante</option>
-            <option value="HOTEL">Hotel</option>
-            <option value="TREM">Trem / Deslocamento</option>
-            <option value="MARCO">Marco Turístico</option>
-            <option value="OUTRO">Outro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Horário</label>
-          <input type="text" class="form-control" id="form-horario" placeholder="Ex: 10h-12h">
-        </div>
-        <div class="form-group">
-          <label>Endereço / Região</label>
-          <input type="text" class="form-control" id="form-endereco" placeholder="Ex: Museumplein 6">
-        </div>
-        <div class="form-group">
-          <label>Custo (€)</label>
-          <input type="number" step="0.01" class="form-control" id="form-custo" placeholder="0.00">
-        </div>
-        <div class="form-group">
-          <label>Observação / Dica</label>
-          <input type="text" class="form-control" id="form-obs" placeholder="Ex: Comprar ingresso antecipado">
-        </div>
-        <div class="form-group">
-          <label>Link Google Maps</label>
-          <input type="url" class="form-control" id="form-link" placeholder="https://maps.app.goo.gl/...">
-        </div>
-        <button type="submit" class="submit-btn">Salvar Atração</button>
+      <form onsubmit="handleRoteiroSubmit(event)">
+        <div class="form-group"><label>Dia (Ex: 10/05 seg)</label><input type="text" id="rot-dia" class="form-control" required></div>
+        <div class="form-group"><label>Cidade</label><input type="text" id="rot-cidade" class="form-control" required></div>
+        <div class="form-group"><label>Atração</label><input type="text" id="rot-atracao" class="form-control" required></div>
+        <div class="form-group"><label>Categoria</label><input type="text" id="rot-categoria" class="form-control"></div>
+        <div class="form-group"><label>Custo (€)</label><input type="number" step="0.01" id="rot-custo" class="form-control"></div>
+        <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
+  <!-- MODAL: ORÇAMENTO -->
+  <div class="modal" id="modal-orcamento">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Novo Item de Orçamento</div>
+        <button class="close-btn" onclick="closeModal('modal-orcamento')">&times;</button>
+      </div>
+      <form onsubmit="handleOrcamentoSubmit(event)">
+        <div class="form-group"><label>Categoria (Ex: VOO, HOTEL)</label><input type="text" id="orc-cat" class="form-control" required></div>
+        <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
+        <div class="form-group"><label>Projetado (€)</label><input type="number" step="0.01" id="orc-proj" class="form-control"></div>
+        <div class="form-group"><label>Efetivado (€)</label><input type="number" step="0.01" id="orc-efet" class="form-control"></div>
+        <div class="form-group"><label>Status (PROJETADO / PAGO)</label><input type="text" id="orc-status" class="form-control" value="PROJETADO"></div>
+        <button type="submit" class="submit-btn">Salvar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GASTOS -->
+  <div class="modal" id="modal-gastos">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Lançar Gasto</div>
+        <button class="close-btn" onclick="closeModal('modal-gastos')">&times;</button>
+      </div>
+      <form onsubmit="handleGastosSubmit(event)">
+        <div class="form-group"><label>Data</label><input type="text" id="gas-data" class="form-control" required></div>
+        <div class="form-group"><label>Cidade</label><input type="text" id="gas-cidade" class="form-control" required></div>
+        <div class="form-group"><label>Descrição do Gasto</label><input type="text" id="gas-desc" class="form-control" required></div>
+        <div class="form-group"><label>Valor (€)</label><input type="number" step="0.01" id="gas-valor" class="form-control" required></div>
+        <button type="submit" class="submit-btn">Lançar</button>
+      </form>
+    </div>
+  </div>
+
   <nav class="bottom-nav">
-    <button class="nav-item active" onclick="switchTab('roteiro', this)">
-      <i class="fa-regular fa-calendar-days nav-icon"></i>
-      <span>Roteiro</span>
-    </button>
-    <button class="nav-item" onclick="switchTab('orcamento', this)">
-      <i class="fa-solid fa-wallet nav-icon"></i>
-      <span>Orçamento</span>
-    </button>
-    <button class="nav-item" onclick="switchTab('gastos', this)">
-      <i class="fa-solid fa-receipt nav-icon"></i>
-      <span>Gastos</span>
-    </button>
+    <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Roteiro</span></button>
+    <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
+    <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
   <script src="app.js"></script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('Service Worker registrado com sucesso!'))
-        .catch(err => console.log('Falha ao registrar Service Worker:', err));
-    });
-  }
-</script>
-
 </body>
 </html>
