@@ -57,7 +57,7 @@ async function startApp() {
   document.getElementById("fab-btn").style.display = "flex";
   document.getElementById("bottom-nav").style.display = "flex";
 
-  await loadAllData(true); // true = seleciona dia inicial
+  await loadAllData(true);
 }
 
 // --- CARREGAR DADOS DO SUPABASE ---
@@ -67,8 +67,8 @@ async function loadAllData(isFirstLoad = false) {
   const { data: gas } = await _supabase.from('gastos').select('*');
 
   roteiroData = rot || [];
-  orcamentoData = orc || [];
-  gastosData = gas || [];
+  orcamentoData = (orc || []).filter(item => item.item && item.categoria !== 'TOTAL');
+  gastosData = (gas || []).filter(item => item.item && item.categoria !== 'TOTAL');
 
   if (isFirstLoad || !currentSelectedDay) {
     autoSelectToday();
@@ -293,10 +293,10 @@ function renderTimeline() {
 
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
       container.innerHTML += `
-        <div class="train-strip" data-id="${item.id}" style="background:#f0f9ff; border-left:4px solid #0284c7; padding:10px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="train-strip" data-id="${item.id}" style="padding:10px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
           <div class="train-info">
-            <span class="train-title" style="font-weight:700; color:#0369a1;"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
-            <div class="train-route" style="font-size:0.8rem; color:#0284c7;"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
+            <span class="train-title" style="font-weight:700;"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
+            <div class="train-route" style="font-size:0.8rem;"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
             <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
@@ -390,7 +390,7 @@ async function handleRoteiroSubmit(e) {
   }
   
   closeModal('modal-roteiro'); 
-  await loadAllData(false); // Mantém o dia atual
+  await loadAllData(false);
 }
 
 // --- ORÇAMENTO E GASTOS ---
@@ -407,9 +407,9 @@ function renderOrcamento() {
   let catTotals = {};
 
   orcamentoData.forEach(item => {
-    // O projetado_eur já está cadastrado em EUR na tabela
     let projEur = parseFloat(item.projetado_eur) || 0;
     
+    // Procura lançamentos correspondentes na aba GASTOS
     let gastosDaCategoria = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
     let calcEfetEur = 0;
     
@@ -421,14 +421,14 @@ function renderOrcamento() {
       if(item.status === "PAGO") calcEfetEur = projEur; 
     }
 
-    projTot += projEur || 0;
-    efetTot += calcEfetEur || 0;
+    projTot += projEur;
+    efetTot += calcEfetEur;
 
     if (!catTotals[item.categoria]) {
       catTotals[item.categoria] = { proj: 0, efet: 0 };
     }
-    catTotals[item.categoria].proj += projEur || 0;
-    catTotals[item.categoria].efet += calcEfetEur || 0;
+    catTotals[item.categoria].proj += projEur;
+    catTotals[item.categoria].efet += calcEfetEur;
 
     let statusColor = "var(--text-main)";
     if (item.status === "PAGO") statusColor = "#059669";
@@ -439,14 +439,14 @@ function renderOrcamento() {
     let displayValBrl = displayValEur * euroMedio;
 
     container.innerHTML += `
-      <div class="list-item" style="padding:10px 0; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item" style="padding:10px; margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
           <div style="font-weight:600;">${item.item}</div>
-          <div style="font-size:0.8rem; color:#6b7280;">${item.categoria} • <span style="color:${statusColor}; font-weight:600;">${item.status}</span></div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:600;">${item.status}</span></div>
         </div>
         <div class="list-item-right" style="text-align:right;">
           <div style="font-weight:700; color:${statusColor}">€ ${displayValEur.toFixed(2)}</div>
-          <div style="font-size:0.75rem; color:#6b7280;">R$ ${displayValBrl.toFixed(2)}</div>
+          <div class="list-item-sub" style="font-size:0.75rem;">R$ ${displayValBrl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editOrcamento(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
             <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-trash"></i></button>
@@ -478,23 +478,20 @@ function renderSubtotaisOrcamento(catTotals) {
     subContainer.id = "orcamento-subtotais";
     subContainer.style.marginTop = "20px";
     subContainer.style.padding = "14px";
-    subContainer.style.background = "#ffffff";
-    subContainer.style.border = "1px solid #e5e7eb";
     subContainer.style.borderRadius = "12px";
-    subContainer.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
     tabOrc.appendChild(subContainer);
   }
 
-  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:700; color:#374151; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
+  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:700; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
   for (const [cat, vals] of Object.entries(catTotals)) {
     let projBrl = vals.proj * euroMedio;
     let efetBrl = vals.efet * euroMedio;
 
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:0.85rem;">
-        <span style="font-weight:600; color:#1f2937;">${cat}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(150,150,150,0.2); font-size:0.85rem;">
+        <span style="font-weight:600;">${cat}</span>
         <div style="text-align:right;">
-          <div style="color:#059669; font-weight:700;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; color:#6b7280; font-weight:400;">(R$ ${efetBrl.toFixed(2)})</span></div>
+          <div style="color:#059669; font-weight:700;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; font-weight:400; opacity:0.8;">(R$ ${efetBrl.toFixed(2)})</span></div>
           <div style="font-size:0.75rem; color:#ea580c;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>
         </div>
       </div>`;
@@ -547,14 +544,14 @@ function renderGastos() {
     let brl = item.moeda === "EUR" ? (item.valor_eur * euroMedio) : item.valor_brl;
     
     container.innerHTML += `
-      <div class="list-item" style="padding:10px 0; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item" style="padding:10px; margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
           <span class="list-item-title" style="font-weight:600;">${item.item}</span>
-          <div class="list-item-sub" style="font-size:0.8rem; color:#6b7280;">${item.data} • ${item.categoria} (${item.cidade || ''})</div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${item.data} • ${item.categoria} (${item.cidade || ''})</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
           <div class="list-item-val" style="font-weight:700;">€ ${eur.toFixed(2)}</div>
-          <div class="list-item-brl" style="font-size:0.75rem; color:#6b7280;">R$ ${brl.toFixed(2)}</div>
+          <div class="list-item-brl" style="font-size:0.75rem;">R$ ${brl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editGasto(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
             <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'gastos')" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-trash"></i></button>
@@ -605,7 +602,7 @@ async function handleGastosSubmit(e) {
   await loadAllData(false);
 }
 
-// Tornar funções acessíveis para os handlers no HTML e botões FAB
+// Tornar funções acessíveis globalmente
 window.openContextModal = openContextModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
