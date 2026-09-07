@@ -94,3 +94,104 @@ header { position: sticky; top: 0; z-index: 100; background: rgba(255, 255, 255,
 .nav-icon { font-size: 1.25rem; }
 .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; border-radius: 28px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; box-shadow: 0 6px 15px rgba(37, 99, 235, 0.4); border: none; cursor: pointer; z-index: 90; transition: transform 0.2s; }
 .fab:active { transform: scale(0.9); }
+
+/* --- SUPORTE A MODO ESCURO AUTOMÁTICO (DARK MODE) --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #0f172a;
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --cat-default: #3b82f6;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+  }
+
+  header {
+    background-color: #1e293b;
+    border-bottom: 1px solid #334155;
+  }
+
+  .brand span, header .icon-btn {
+    color: #f8fafc;
+  }
+
+  .day-card {
+    background-color: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+  }
+
+  .day-card.active {
+    background-color: var(--primary);
+    color: #ffffff;
+  }
+
+  .chip {
+    background-color: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+  }
+
+  .chip.active {
+    background-color: var(--primary);
+    color: #ffffff;
+  }
+
+  .card, .metric-card, .list-item {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+  }
+
+  .card-address, .card-obs, .list-item-sub, .metric-title {
+    color: #94a3b8 !important;
+  }
+
+  .modal-content {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+  }
+
+  .form-control {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #334155;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary);
+  }
+
+  .bottom-nav {
+    background-color: #1e293b;
+    border-top: 1px solid #334155;
+  }
+
+  .nav-item {
+    color: #94a3b8;
+  }
+
+  .nav-item.active {
+    color: var(--primary);
+  }
+
+  .train-strip {
+    background-color: #0f172a !important;
+    border-left: 4px solid #38bdf8 !important;
+  }
+
+  .train-title {
+    color: #38bdf8 !important;
+  }
+
+  #orcamento-subtotais {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+  }
+}
