@@ -1,3 +1,5 @@
+const SUPABASE_URL = "https://vgjxorgortxouxjojgtn.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnanhvcmdvcnR4b3V4am9qZ3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NjQzNDgsImV4cCI6MjEwNDM0MDM0OH0.IelNiUMUA04-mhWQl9j57qRKOXEfleHb8zYEyS_D1o8";
 // Dados Oficiais extraídos do EUROPA_2027_APP_ROTEIRO.csv
 const rawRoteiroData = [
   { "DATA / DIA": "2027-05-10", "CIDADE": "AMSTERDAM", "REGIÃO": "", "ORDEM": 1, "CATEGORIA": "AEROPORTO", "ATRAÇÃO": "AMSTERDAM SCHIPHOL", "HORÁRIO": "10h50", "ENDEREÇO": "", "CUSTO": 0, "LINK": "", "OBS": "" },
