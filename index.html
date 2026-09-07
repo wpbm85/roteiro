@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Europa 2027</title>
   
+  <!-- ÍCONES E ATALHO PARA CELULAR / CHROME -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%232563eb' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%232563eb' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,12 +26,12 @@
 <body>
 
   <!-- MODAL DE LOGIN SUPABASE -->
-  <div class="modal active" id="modal-login" style="z-index: 999; background: #f8fafc;">
-    <div class="modal-content" style="margin:auto; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+  <div class="modal active" id="modal-login" style="z-index: 999;">
+    <div class="modal-content" style="margin:auto; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
       <div style="text-align: center; margin-bottom: 20px;">
         <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: var(--primary);"></i>
-        <h2 style="margin-top: 10px; color: var(--text-main);">Europa 2027</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Acesso Restrito</p>
+        <h2 style="margin-top: 10px;">Europa 2027</h2>
+        <p style="font-size: 0.85rem; opacity:0.8;">Acesso Restrito</p>
       </div>
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
@@ -35,7 +42,7 @@
           <label>Senha</label>
           <input type="password" id="login-senha" class="form-control" required placeholder="******">
         </div>
-        <div id="login-error" style="color: red; font-size: 0.8rem; text-align: center; margin-bottom:10px; display:none;">Credenciais inválidas.</div>
+        <div id="login-error" style="color: #ef4444; font-size: 0.8rem; text-align: center; margin-bottom:10px; display:none;">Credenciais inválidas.</div>
         <button type="submit" class="submit-btn" id="btn-login-submit">Entrar</button>
       </form>
     </div>
@@ -69,17 +76,17 @@
     <!-- ABA 2: ORÇAMENTO -->
     <section id="tab-orcamento" class="tab-content">
       <div class="euro-config">
-        <span><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
-        <input type="number" step="0.01" id="euro-input" value="5.98" onchange="updateEuro()">
+        <span class="euro-label"><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
+        <input type="number" step="0.01" id="euro-input" value="5.98" class="euro-field" onchange="updateEuro()">
       </div>
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-title">Projetado (Orçamento)</div>
+          <div class="metric-title">PROJETADO (ORÇAMENTO)</div>
           <div class="metric-val" id="metric-proj-eur">€ 0,00</div>
           <div class="metric-sub" id="metric-proj-brl">R$ 0,00</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">Efetivado (PAGO)</div>
+          <div class="metric-title">EFETIVADO (PAGO)</div>
           <div class="metric-val" id="metric-efet-eur" style="color: #059669;">€ 0,00</div>
           <div class="metric-sub" id="metric-efet-brl">R$ 0,00</div>
         </div>

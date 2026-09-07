@@ -293,9 +293,9 @@ function renderTimeline() {
 
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
       container.innerHTML += `
-        <div class="train-strip" data-id="${item.id}" style="padding:10px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="train-strip" data-id="${item.id}">
           <div class="train-info">
-            <span class="train-title" style="font-weight:700;"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
+            <span class="train-title"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
             <div class="train-route" style="font-size:0.8rem;"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
@@ -326,7 +326,7 @@ function renderTimeline() {
           <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
         </div>
         
-        <div class="card-title" style="margin-top:6px; font-weight:700;">${item.atracao}</div>
+        <div class="card-title">${item.atracao}</div>
         ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao : ''}</div>` : ''}
         ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
         
@@ -409,7 +409,7 @@ function renderOrcamento() {
   orcamentoData.forEach(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
     
-    // Procura lançamentos correspondentes na aba GASTOS
+    // Procura lançamentos de gastos efetuados para este item específico
     let gastosDaCategoria = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
     let calcEfetEur = 0;
     
@@ -435,17 +435,16 @@ function renderOrcamento() {
     else if (item.status === "A PAGAR") statusColor = "#d97706";
     else if (item.status === "PROJETADO") statusColor = "#ea580c";
 
-    let displayValEur = calcEfetEur > 0 ? calcEfetEur : projEur;
-    let displayValBrl = displayValEur * euroMedio;
+    let displayValBrl = projEur * euroMedio;
 
     container.innerHTML += `
-      <div class="list-item" style="padding:10px; margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
-          <div style="font-weight:600;">${item.item}</div>
-          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:600;">${item.status}</span></div>
+          <div style="font-weight:700;">${item.item}</div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:700;">${item.status}</span></div>
         </div>
         <div class="list-item-right" style="text-align:right;">
-          <div style="font-weight:700; color:${statusColor}">€ ${displayValEur.toFixed(2)}</div>
+          <div style="font-weight:800; color:${statusColor}">€ ${projEur.toFixed(2)}</div>
           <div class="list-item-sub" style="font-size:0.75rem;">R$ ${displayValBrl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editOrcamento(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
@@ -479,20 +478,21 @@ function renderSubtotaisOrcamento(catTotals) {
     subContainer.style.marginTop = "20px";
     subContainer.style.padding = "14px";
     subContainer.style.borderRadius = "12px";
+    subContainer.className = "list-item";
     tabOrc.appendChild(subContainer);
   }
 
-  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:700; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
+  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:800; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
   for (const [cat, vals] of Object.entries(catTotals)) {
     let projBrl = vals.proj * euroMedio;
     let efetBrl = vals.efet * euroMedio;
 
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(150,150,150,0.2); font-size:0.85rem;">
-        <span style="font-weight:600;">${cat}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color); font-size:0.85rem;">
+        <span style="font-weight:700;">${cat}</span>
         <div style="text-align:right;">
-          <div style="color:#059669; font-weight:700;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; font-weight:400; opacity:0.8;">(R$ ${efetBrl.toFixed(2)})</span></div>
-          <div style="font-size:0.75rem; color:#ea580c;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>
+          <div style="color:#059669; font-weight:800;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; font-weight:500; opacity:0.8;">(R$ ${efetBrl.toFixed(2)})</span></div>
+          <div style="font-size:0.75rem; color:#ea580c; font-weight:600;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>
         </div>
       </div>`;
   }
@@ -544,13 +544,13 @@ function renderGastos() {
     let brl = item.moeda === "EUR" ? (item.valor_eur * euroMedio) : item.valor_brl;
     
     container.innerHTML += `
-      <div class="list-item" style="padding:10px; margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
-          <span class="list-item-title" style="font-weight:600;">${item.item}</span>
+          <span class="list-item-title" style="font-weight:700;">${item.item}</span>
           <div class="list-item-sub" style="font-size:0.8rem;">${item.data} • ${item.categoria} (${item.cidade || ''})</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
-          <div class="list-item-val" style="font-weight:700;">€ ${eur.toFixed(2)}</div>
+          <div class="list-item-val" style="font-weight:800;">€ ${eur.toFixed(2)}</div>
           <div class="list-item-brl" style="font-size:0.75rem;">R$ ${brl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editGasto(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
@@ -602,7 +602,7 @@ async function handleGastosSubmit(e) {
   await loadAllData(false);
 }
 
-// Tornar funções acessíveis globalmente
+// Global Exports
 window.openContextModal = openContextModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
