@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Europa 2027 | Roteiro & Gastos</title>
+  
+  <!-- Fontes Google & SheetJS para exportar XLSX -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --border-color: #e2e8f0;
+      
+      /* Cores Stippl por Categoria */
+      --cat-museu: #8b5cf6;
+      --cat-hotel: #0284c7;
+      --cat-restaurante: #f97316;
+      --cat-aeroporto: #64748b;
+      --cat-marco: #059669;
+      --cat-default: #475569;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg-main); color: var(--text-main); padding-bottom: 90px; }
+
+    /* Topbar Header */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .brand { font-weight: 700; font-size: 1.1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .export-btn {
+      background: #f1f5f9; border: 1px solid var(--border-color);
+      padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+    }
+
+    /* Container Principal */
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+
+    /* Métricas do Topo (Orçamento) */
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .metric-card {
+      background: var(--card-bg); border-radius: 16px; padding: 14px;
+      border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .metric-title { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+    .metric-val { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+    .metric-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Filtro por Cidade (Chips) */
+    .city-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 12px; scrollbar-width: none; }
+    .city-filters::-webkit-scrollbar { display: none; }
+    .chip {
+      padding: 8px 16px; border-radius: 20px; background: #e2e8f0;
+      color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
+      border: none; white-space: nowrap; cursor: pointer; transition: 0.2s;
+    }
+    .chip.active { background: var(--primary); color: #ffffff; }
+
+    /* Lista e Cards de Roteiro (Estilo Stippl) */
+    .timeline { display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: var(--card-bg); border-radius: 16px; padding: 16px;
+      border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+      display: flex; flex-direction: column; gap: 10px; position: relative;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .badge-cat {
+      padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; color: #fff; background: var(--cat-default);
+    }
+    .card-time { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+    .card-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); line-height: 1.3; }
+    .card-info { font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 10px; margin-top: 4px; }
+    .card-cost { font-size: 0.9rem; font-weight: 700; color: #16a34a; }
+    .maps-btn {
+      color: var(--primary); background: var(--primary-light);
+      text-decoration: none; padding: 6px 12px; border-radius: 10px;
+      font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;
+    }
+
+    /* Modal / Form */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff; border-radius: 24px 24px 0 0; width: 100%; max-width: 600px;
+      padding: 24px; animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-title { font-size: 1.1rem; font-weight: 700; }
+    .close-btn { border: none; background: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+    .form-control {
+      width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);
+      font-size: 0.95rem; outline: none; background: #f8fafc;
+    }
+    .submit-btn {
+      width: 100%; padding: 14px; border-radius: 14px; background: var(--primary);
+      color: #fff; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 8px;
+    }
+
+    /* Barra de Navegação Inferior */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px); border-top: 1px solid var(--border-color);
+      display: flex; justify-content: space-around; padding: 10px 0; z-index: 100;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      font-size: 0.75rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none;
+    }
+    .nav-item.active { color: var(--primary); }
+    .nav-icon { font-size: 1.2rem; }
+
+    /* Botão Flutuante + */
+    .fab {
+      position: fixed; bottom: 70px; right: 20px; width: 56px; height: 56px;
+      border-radius: 28px; background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); border: none; cursor: pointer; z-index: 90;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar Header -->
+  <header>
+    <div class="brand">✈️ Europa 2027</div>
+    <button class="export-btn" onclick="exportToXLSX()">📥 Baixar .XLSX</button>
+  </header>
+
+  <div class="container">
+    
+    <!-- Painel de Métricas -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Projetado Total</div>
+        <div class="metric-val" id="metric-proj">€ 3.000,00</div>
+        <div class="metric-sub" id="metric-proj-brl">R$ 18.000,00</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Efetivado / Pago</div>
+        <div class="metric-val" id="metric-efet" style="color: #059669;">€ 2.642,21</div>
+        <div class="metric-sub" id="metric-efet-brl">R$ 15.767,80</div>
+      </div>
+    </div>
+
+    <!-- Filtro de Cidades -->
+    <div class="city-filters">
+      <button class="chip active" onclick="filterCity('TODAS', this)">Todas</button>
+      <button class="chip" onclick="filterCity('AMSTERDAM', this)">Amsterdam</button>
+      <button class="chip" onclick="filterCity('PARIS', this)">Paris</button>
+      <button class="chip" onclick="filterCity('BRUXELAS', this)">Bruxelas</button>
+      <button class="chip" onclick="filterCity('ROTERDAM', this)">Rotterdam</button>
+    </div>
+
+    <!-- Timeline / Lista de Cards -->
+    <div class="timeline" id="timeline-list">
+      <!-- Inserido dinamicamente pelo Javascript -->
+    </div>
+
+  </div>
+
+  <!-- Botão Adicionar -->
+  <button class="fab" onclick="openModal()">+</button>
+
+  <!-- Modal Adicionar Atração -->
+  <div class="modal" id="add-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Incluir Nova Atração</div>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <form id="add-form" onsubmit="handleFormSubmit(event)">
+        <div class="form-group">
+          <label>Cidade</label>
+          <select class="form-control" id="form-cidade" required>
+            <option value="AMSTERDAM">Amsterdam</option>
+            <option value="PARIS">Paris</option>
+            <option value="BRUXELAS">Bruxelas</option>
+            <option value="ROTERDAM">Rotterdam</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Atração / Nome</label>
+          <input type="text" class="form-control" id="form-atracao" placeholder="Ex: Museu Van Gogh" required>
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select class="form-control" id="form-categoria">
+            <option value="MUSEU">Museu</option>
+            <option value="RESTAURANTE">Restaurante</option>
+            <option value="HOTEL">Hotel</option>
+            <option value="MARCO">Marco / Ponto Turístico</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Custo Estimado (€)</label>
+          <input type="number" step="0.01" class="form-control" id="form-custo" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Link Google Maps</label>
+          <input type="url" class="form-control" id="form-link" placeholder="https://maps.app.goo.gl/...">
+        </div>
+        <button type="submit" class="submit-btn">Salvar no Roteiro</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Barra de Navegação Inferior -->
+  <nav class="bottom-nav">
+    <button class="nav-item active">
+      <span class="nav-icon">🗺️</span>
+      <span>Roteiro</span>
+    </button>
+    <button class="nav-item">
+      <span class="nav-icon">💰</span>
+      <span>Orçamento</span>
+    </button>
+    <button class="nav-item">
+      <span class="nav-icon">☕</span>
+      <span>Gastos</span>
+    </button>
+  </nav>
+
+  <script>
+    // Dados Iniciais (Extraídos da sua planilha oficial EUROPA_2027_APP_ROTEIRO)
+    const defaultRoteiro = [
+      { id: 1, cidade: "AMSTERDAM", regiao: "BULLEWIJK", categoria: "HOTEL", atracao: "Hampton by Hilton Arena Boulevard", horari: "Checkin 15h", endereco: "Hoekenrode 1", custo: 333.56, link: "", obs: "Depósito de malas" },
+      { id: 2, cidade: "AMSTERDAM", regiao: "DE WALLEN", categoria: "MUSEU", atracao: "NEMO Science Center", horari: "10h-17h30", endereco: "Oosterdok 2", custo: 49.50, link: "https://maps.app.goo.gl/HQgHmEkUffjoBnrd9", obs: "Renzo Piano" },
+      { id: 3, cidade: "AMSTERDAM", regiao: "JORDAAN", categoria: "MUSEU", atracao: "Casa de Anne Frank", horari: "9h-22h", endereco: "Westermarkt 20", custo: 34.00, link: "https://maps.app.goo.gl/Z38GjcEYvuAfwnRr8", obs: "Ingresso antecipado" },
+      { id: 4, cidade: "AMSTERDAM", regiao: "DE WALLEN", categoria: "MARCO", atracao: "Oude Kerk", horari: "10h-18h", endereco: "Oudekerksplein 23", custo: 15.00, link: "https://maps.app.goo.gl/DMj7py9fM9SSsKQWA", obs: "" }
+    ];
+
+    let roteiroData = [];
+    let currentFilter = "TODAS";
+
+    // Inicialização
+    document.addEventListener("DOMContentLoaded", () => {
+      const saved = localStorage.getItem("europa2027_roteiro");
+      roteiroData = saved ? JSON.parse(saved) : defaultRoteiro;
+      renderTimeline();
+    });
+
+    // Renderizar Lista de Cards
+    function renderTimeline() {
+      const container = document.getElementById("timeline-list");
+      container.innerHTML = "";
+
+      const filtered = currentFilter === "TODAS" 
+        ? roteiroData 
+        : roteiroData.filter(item => item.cidade.toUpperCase() === currentFilter.toUpperCase());
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted)">Nenhuma atração encontrada para este filtro.</div>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        
+        let catBg = "var(--cat-default)";
+        if(item.categoria === "MUSEU") catBg = "var(--cat-museu)";
+        if(item.categoria === "HOTEL") catBg = "var(--cat-hotel)";
+        if(item.categoria === "RESTAURANTE") catBg = "var(--cat-restaurante)";
+        if(item.categoria === "MARCO") catBg = "var(--cat-marco)";
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="badge-cat" style="background: ${catBg}">${item.categoria}</span>
+            <span class="card-time">${item.horari || ''}</span>
+          </div>
+          <div class="card-title">${item.atracao}</div>
+          <div class="card-info">
+            <span>📍 ${item.cidade} ${item.regiao ? '• ' + item.regiao : ''}</span>
+            ${item.endereco ? `<span>🏠 ${item.endereco}</span>` : ''}
+          </div>
+          <div class="card-footer">
+            <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : 'Grátis / Incluso'}</span>
+            ${item.link ? `<a href="${item.link}" target="_blank" class="maps-btn">📍 Abrir no Maps</a>` : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Filtro por Cidade
+    function filterCity(city, btn) {
+      currentFilter = city;
+      document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+      btn.classList.add("active");
+      renderTimeline();
+    }
+
+    // Modal Control
+    function openModal() { document.getElementById("add-modal").classList.add("active"); }
+    function closeModal() { document.getElementById("add-modal").classList.remove("active"); }
+
+    // Salvar Novo Item
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const newItem = {
+        id: Date.now(),
+        cidade: document.getElementById("form-cidade").value,
+        atracao: document.getElementById("form-atracao").value,
+        categoria: document.getElementById("form-categoria").value,
+        custo: parseFloat(document.getElementById("form-custo").value) || 0,
+        link: document.getElementById("form-link").value,
+        regiao: "", horari: "Flexível", endereco: "", obs: ""
+      };
+
+      roteiroData.push(newItem);
+      localStorage.setItem("europa2027_roteiro", JSON.stringify(roteiroData));
+      renderTimeline();
+      closeModal();
+      e.target.reset();
+    }
+
+    // Exportar Planilha Atualizada .XLSX
+    function exportToXLSX() {
+      const ws = XLSX.utils.json_to_sheet(roteiroData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "ROTEIRO");
+      XLSX.writeFile(wb, "EUROPA_2027_ATUALIZADO.xlsx");
+    }
+  </script>
+</body>
+</html>
