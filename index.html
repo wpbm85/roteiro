@@ -103,15 +103,20 @@
         <div class="modal-title">Atração</div>
         <button class="close-btn" onclick="closeModal('modal-roteiro')">&times;</button>
       </div>
-      <form onsubmit="handleRoteiroSubmit(event)">
+      <form id="form-roteiro" onsubmit="handleRoteiroSubmit(event)">
         <input type="hidden" id="rot-id">
         <div class="form-group"><label>Dia</label><select id="rot-dia" class="form-control" required></select></div>
         <div class="form-group"><label>Cidade</label><select id="rot-cidade" class="form-control" required></select></div>
         <div class="form-group"><label>Categoria</label>
           <select id="rot-categoria" class="form-control">
-            <option value="MUSEU">MUSEU</option><option value="HOTEL">HOTEL</option>
-            <option value="RESTAURANTE">RESTAURANTE</option><option value="MARCO">MARCO</option>
-            <option value="TREM">TREM / ESTAÇÃO</option><option value="OUTRO">OUTRO</option>
+            <option value="DESTAQUE">DESTAQUE</option>
+            <option value="ESTAÇÃO">ESTAÇÃO</option>
+            <option value="HOTEL">HOTEL</option>
+            <option value="LOJA">LOJA</option>
+            <option value="MUSEU">MUSEU</option>
+            <option value="PARQUE">PARQUE</option>
+            <option value="RESTAURANTE">RESTAURANTE</option>
+            <option value="OUTRO">OUTRO</option>
           </select>
         </div>
         <div class="form-group"><label>Atração</label><input type="text" id="rot-atracao" class="form-control" required></div>
@@ -130,25 +135,29 @@
   <div class="modal" id="modal-orcamento">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title">Novo Item de Orçamento</div>
+        <div class="modal-title">Item de Orçamento</div>
         <button class="close-btn" onclick="closeModal('modal-orcamento')">&times;</button>
       </div>
-      <form onsubmit="handleOrcamentoSubmit(event)">
+      <form id="form-orcamento" onsubmit="handleOrcamentoSubmit(event)">
+        <input type="hidden" id="orc-id">
         <div class="form-group"><label>Categoria</label>
-          <select id="orc-cat" class="form-control" required>
-            <option value="VOO">VOO</option><option value="HOTEL">HOTEL</option><option value="TREM">TREM</option>
-            <option value="ALIMENTAÇÃO">ALIMENTAÇÃO</option><option value="INGRESSOS">INGRESSOS</option>
-            <option value="TRANSPORTE">TRANSPORTE</option>
-          </select>
+          <select id="orc-cat" class="form-control" required></select>
         </div>
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
         <div class="form-group"><label>Status</label>
-          <select id="orc-status" class="form-control"><option value="PROJETADO">PROJETADO</option><option value="A PAGAR">A PAGAR</option><option value="PAGO">PAGO</option></select>
+          <select id="orc-status" class="form-control">
+            <option value="PROJETADO">PROJETADO</option>
+            <option value="A PAGAR">A PAGAR</option>
+            <option value="PAGO">PAGO</option>
+          </select>
         </div>
         <div class="form-group"><label>Moeda de Referência</label>
-          <select id="orc-moeda" class="form-control"><option value="EUR">Euros (€)</option><option value="BRL">Reais (R$)</option></select>
+          <select id="orc-moeda" class="form-control">
+            <option value="EUR">Euros (€)</option>
+            <option value="BRL">Reais (R$)</option>
+          </select>
         </div>
-        <div class="form-group"><label>Valor Projetado</label><input type="number" step="0.01" id="orc-proj" class="form-control"></div>
+        <div class="form-group"><label>Valor Projetado (€)</label><input type="number" step="0.01" id="orc-proj" class="form-control" required></div>
         <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>
@@ -161,18 +170,19 @@
         <div class="modal-title">Lançar Gasto Efetivado</div>
         <button class="close-btn" onclick="closeModal('modal-gastos')">&times;</button>
       </div>
-      <form onsubmit="handleGastosSubmit(event)">
-        <div class="form-group"><label>Data do Gasto</label><select id="gas-data" class="form-control" required></select></div>
+      <form id="form-gastos" onsubmit="handleGastosSubmit(event)">
+        <input type="hidden" id="gas-id">
+        <div class="form-group"><label>Data do Gasto</label><input type="date" id="gas-data" class="form-control" required></div>
         <div class="form-group"><label>Cidade</label><select id="gas-cidade" class="form-control" required></select></div>
         <div class="form-group"><label>Categoria</label>
-          <select id="gas-cat" class="form-control" required>
-            <option value="ALIMENTAÇÃO">ALIMENTAÇÃO</option><option value="MERCADO">MERCADO</option><option value="COMPRAS">COMPRAS</option>
-            <option value="TRANSPORTE">TRANSPORTE URBANO</option><option value="INGRESSOS">INGRESSOS EXTRA</option>
-          </select>
+          <select id="gas-cat" class="form-control" required></select>
         </div>
         <div class="form-group"><label>Descrição do Item</label><input type="text" id="gas-item" class="form-control" required></div>
         <div class="form-group"><label>Moeda Paga</label>
-          <select id="gas-moeda" class="form-control"><option value="EUR">Euros (€)</option><option value="BRL">Reais (R$)</option></select>
+          <select id="gas-moeda" class="form-control">
+            <option value="EUR">Euros (€)</option>
+            <option value="BRL">Reais (R$)</option>
+          </select>
         </div>
         <div class="form-group"><label>Valor Gasto</label><input type="number" step="0.01" id="gas-valor" class="form-control" required></div>
         <button type="submit" class="submit-btn">Lançar</button>
