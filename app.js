@@ -1,6 +1,6 @@
 // --- CONFIGURAÇÃO SUPABASE ---
 const SUPABASE_URL = "https://vgjxorgortxouxjojgtn.supabase.co";
-const SUPABASE_KEY = "sb_publishable_f7S6v6aWr2cEFjJjuMVZPg_P2uQi"; // Substitua caso copie a chave inteira do painel
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnanhvcmdvcnR4b3V4am9qZ3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NjQzNDgsImV4cCI6MjEwNDM0MDM0OH0.IelNiUMUA04-mhWQl9j57qRKOXEfleHb8zYEyS_D1o8"; // Substitua caso copie a chave inteira do painel
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let session = null;
