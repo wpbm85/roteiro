@@ -1,6 +1,6 @@
 // --- CONFIGURAÇÃO SUPABASE ---
-const SUPABASE_URL = "https://vgjxorgortxouxjojgtn.supabase.co/rest/v1/";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnanhvcmdvcnR4b3V4am9qZ3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NjQzNDgsImV4cCI6MjEwNDM0MDM0OH0.IelNiUMUA04-mhWQl9j57qRKOXEfleHb8zYEyS_D1o8";
+const SUPABASE_URL = "https://vgjxorgortxouxjojgtn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_f7S6v6aWr2cEFjJjuMVZPg_P2uQi"; // Substitua caso copie a chave inteira do painel
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let session = null;
@@ -8,30 +8,13 @@ let euroMedio = 5.98;
 let currentTab = 'roteiro';
 let currentFilter = "TODAS";
 let currentSelectedDay = null; 
-let showDone = "ALL"; // 'ALL' ou 'PENDING'
+let showDone = "ALL";
 
-// DADOS EXTRAÍDOS DA NOVA PLANILHA
-let roteiroData = [
-  {"id":1, "DATA / DIA": "10/05 mon", "CIDADE": "AMSTERDAM", "REGIÃO": "", "ORDEM": 1, "CATEGORIA": "AEROPORTO", "ATRAÇÃO": "AMSTERDAM SCHIPHOL", "HORÁRIO": "10h50", "ENDEREÇO": "", "CUSTO": 0, "LINK": "", "OBS": "", "feito": false},
-  {"id":2, "DATA / DIA": "10/05 mon", "CIDADE": "AMSTERDAM", "REGIÃO": "BULLEWIJK", "ORDEM": 2, "CATEGORIA": "HOTEL", "ATRAÇÃO": "Hampton by Hilton Arena Boulevard", "HORÁRIO": "", "ENDEREÇO": "Hoekenrode 1", "CUSTO": 0, "OBS": "Checkin 15h; depósito malas", "feito": false},
-  {"id":3, "DATA / DIA": "10/05 mon", "CIDADE": "AMSTERDAM", "REGIÃO": "DE WALLEN", "ORDEM": 3, "CATEGORIA": "MUSEU", "ATRAÇÃO": "NEMO Science Center", "HORÁRIO": "10-17h30", "ENDEREÇO": "Oosterdok 2", "CUSTO": 49.5, "LINK": "https://maps.app.goo.gl/HQgHmEkUffjoBnrd9", "OBS": "Renzo Piano", "feito": false},
-  {"id":4, "DATA / DIA": "13/05 thu", "CIDADE": "BRUXELAS", "REGIÃO": "BRUXELLES MIDI", "ORDEM": 1, "CATEGORIA": "ESTAÇÃO", "ATRAÇÃO": "AMSTERDAM ZUID > BRUXELLES MIDI", "HORÁRIO": "13h03 > 15h11", "ENDEREÇO": "Spoorslag 29", "CUSTO": 60, "OBS": "Já pago", "feito": false},
-  {"id":5, "DATA / DIA": "13/05 thu", "CIDADE": "BRUXELAS", "REGIÃO": "", "ORDEM": 2, "CATEGORIA": "MARCO", "ATRAÇÃO": "Grand Place", "HORÁRIO": "24h", "ENDEREÇO": "Rue des Harengs 6, 1000", "CUSTO": 0, "OBS": "", "feito": false},
-  {"id":6, "DATA / DIA": "17/05 mon", "CIDADE": "PARIS", "REGIÃO": "", "ORDEM": 1, "CATEGORIA": "HOTEL", "ATRAÇÃO": "AIRBNB", "HORÁRIO": "15h", "ENDEREÇO": "19, Avenue de Paris", "CUSTO": 0, "OBS": "CHECKIN 15h; MALAS", "feito": false},
-  {"id":7, "DATA / DIA": "20/05 thu", "CIDADE": "PARIS", "REGIÃO": "", "ORDEM": 1, "CATEGORIA": "MUSEU", "ATRAÇÃO": "Museu do Louvre", "HORÁRIO": "9h-18h", "ENDEREÇO": "Rue de Rivoli", "CUSTO": 22, "OBS": "Fechado 3a", "feito": false}
-]; // Estrutura resumida, adicionará tudo via modal facilmente.
+let roteiroData = [];
+let orcamentoData = [];
+let gastosData = [];
 
-let orcamentoData = [
-  {"id":1, "CATEGORIA": "HOTEL", "ITEM": "HOTEL AMSTERDAM", "CIDADE": "AMSTERDAM", "PROJETADO (€)": 333.56, "STATUS": "A PAGAR", "MOEDA": "EUR"},
-  {"id":2, "CATEGORIA": "HOTEL", "ITEM": "HOTEL PARIS", "CIDADE": "PARIS", "PROJETADO (€)": 1050, "STATUS": "PAGO", "MOEDA": "BRL"},
-  {"id":3, "CATEGORIA": "TREM", "ITEM": "AMSTERDAM > BRUXELAS", "CIDADE": "BRUXELAS", "PROJETADO (€)": 60, "STATUS": "PAGO", "MOEDA": "EUR"}
-];
-
-let gastosData = [
-  {"id":1, "DATA": "24/08 mon", "CIDADE": "GERAL", "CATEGORIA": "VOO", "ITEM": "LATAM", "MOEDA": "BRL", "VALOR (R$)": 14562.54, "VALOR (€)": 2435.20}
-];
-
-// --- AUTH & INICIALIZAÇÃO ---
+// --- AUTENTICAÇÃO ---
 document.addEventListener("DOMContentLoaded", async () => {
   const { data } = await _supabase.auth.getSession();
   if (data.session) {
@@ -42,12 +25,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const email = document.getElementById("login-email").value;
+  const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-senha").value;
+  const errBox = document.getElementById("login-error");
+
+  errBox.style.display = "none";
+
   const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
   
   if (error) {
-    document.getElementById("login-error").style.display = "block";
+    errBox.innerText = `Erro: ${error.message}`;
+    errBox.style.display = "block";
   } else {
     session = data.session;
     startApp();
@@ -59,15 +47,27 @@ async function logout() {
   window.location.reload();
 }
 
-function startApp() {
+async function startApp() {
   document.getElementById("modal-login").classList.remove("active");
   document.getElementById("main-content").style.display = "block";
   document.getElementById("fab-btn").style.display = "flex";
   document.getElementById("bottom-nav").style.display = "flex";
-  
-  autoSelectToday(); // Seleciona o dia atual
-  populateSelects(); // Preenche dropdowns dos formulários
-  
+
+  await loadAllData();
+}
+
+// --- CARREGAR DADOS DO SUPABASE ---
+async function loadAllData() {
+  const { data: rot } = await _supabase.from('roteiro').select('*').order('ORDEM', { ascending: true });
+  const { data: orc } = await _supabase.from('orcamento').select('*');
+  const { data: gas } = await _supabase.from('gastos').select('*');
+
+  roteiroData = rot || [];
+  orcamentoData = orc || [];
+  gastosData = gas || [];
+
+  autoSelectToday();
+  populateSelects();
   renderDaysCarousel();
   renderCityChips();
   renderTimeline();
@@ -75,45 +75,35 @@ function startApp() {
   renderGastos();
 }
 
-// --- LÓGICA DE DATAS ---
+// --- NAVEGAÇÃO & DATAS ---
 function autoSelectToday() {
   const hoje = new Date();
   const diaMes = hoje.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  // Procura se a string do dia existe no roteiro (ex: "10/05")
-  const targetDay = roteiroData.find(i => i["DATA / DIA"].startsWith(diaMes));
+  const targetDay = roteiroData.find(i => i["DATA / DIA"] && i["DATA / DIA"].startsWith(diaMes));
   
   if (targetDay) {
     currentSelectedDay = targetDay["DATA / DIA"];
   } else {
-    // Se não for época da viagem, seleciona o 1º dia cadastrado cronologicamente
     const uniqueDays = [...new Set(roteiroData.map(item => item["DATA / DIA"]).filter(Boolean))];
     currentSelectedDay = uniqueDays[0] || "";
   }
 }
 
-// --- POPULAR DROPDOWNS DO SINAIS DE + ---
 function populateSelects() {
   const uniqueDays = [...new Set(roteiroData.map(item => item["DATA / DIA"]).filter(Boolean))];
-  const uniqueCities = [...new Set(roteiroData.map(item => item.CIDADE.toUpperCase()).filter(Boolean))];
+  const uniqueCities = [...new Set(roteiroData.map(item => item.CIDADE ? item.CIDADE.toUpperCase() : "").filter(Boolean))];
   
   const rotDia = document.getElementById("rot-dia");
   const gasDia = document.getElementById("gas-data");
-  rotDia.innerHTML = ""; gasDia.innerHTML = "";
-  uniqueDays.forEach(d => {
-    rotDia.innerHTML += `<option value="${d}">${d}</option>`;
-    gasDia.innerHTML += `<option value="${d}">${d}</option>`;
-  });
+  if(rotDia) rotDia.innerHTML = uniqueDays.map(d => `<option value="${d}">${d}</option>`).join("");
+  if(gasDia) gasDia.innerHTML = uniqueDays.map(d => `<option value="${d}">${d}</option>`).join("");
 
   const rotCity = document.getElementById("rot-cidade");
   const gasCity = document.getElementById("gas-cidade");
-  rotCity.innerHTML = ""; gasCity.innerHTML = "";
-  uniqueCities.forEach(c => {
-    rotCity.innerHTML += `<option value="${c}">${c}</option>`;
-    gasCity.innerHTML += `<option value="${c}">${c}</option>`;
-  });
+  if(rotCity) rotCity.innerHTML = uniqueCities.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(gasCity) gasCity.innerHTML = uniqueCities.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
-// --- NAVEGAÇÃO & UI ---
 function switchTab(tabName, btn) {
   currentTab = tabName;
   document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
@@ -123,20 +113,19 @@ function switchTab(tabName, btn) {
 }
 
 function openContextModal() {
-  document.getElementById("rot-id").value = ""; // Limpa ID (modo criar)
+  document.getElementById("rot-id").value = "";
   document.getElementById(`modal-${currentTab}`).classList.add("active");
 }
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("active");
 }
 
-// --- ROTEIRO COMPLETO ---
+// --- ROTEIRO ---
 function renderDaysCarousel() {
   const container = document.getElementById("days-carousel-container");
   container.innerHTML = "";
   let uniqueDays = [...new Set(roteiroData.map(item => item["DATA / DIA"]).filter(Boolean))];
   
-  // Se houver uma cidade filtrada, mostra só os dias em que a cidade está presente
   if (currentFilter !== "TODAS") {
     uniqueDays = [...new Set(roteiroData.filter(i => i.CIDADE === currentFilter).map(item => item["DATA / DIA"]))];
   }
@@ -156,14 +145,12 @@ function renderDaysCarousel() {
 
 function renderCityChips() {
   const cityBar = document.getElementById("city-bar");
-  let validCities = [...new Set(roteiroData.map(i => i.CIDADE.toUpperCase()).filter(Boolean))];
+  let validCities = [...new Set(roteiroData.map(i => i.CIDADE ? i.CIDADE.toUpperCase() : "").filter(Boolean))];
   
-  // O filtro de cidades só mostra as cidades contidas no dia selecionado
   if (currentSelectedDay) {
-    validCities = [...new Set(roteiroData.filter(i => i["DATA / DIA"] === currentSelectedDay).map(i => i.CIDADE.toUpperCase()))];
+    validCities = [...new Set(roteiroData.filter(i => i["DATA / DIA"] === currentSelectedDay).map(i => i.CIDADE ? i.CIDADE.toUpperCase() : ""))];
   }
   
-  // Se a cidade atual não faz parte deste dia, reseta para "TODAS"
   if (currentFilter !== "TODAS" && !validCities.includes(currentFilter)) {
     currentFilter = "TODAS";
   }
@@ -188,15 +175,19 @@ function setDoneFilter(type) {
   renderTimeline();
 }
 
-function toggleDone(id) {
+async function toggleDone(id) {
   const item = roteiroData.find(i => i.id === id);
-  if(item) { item.feito = !item.feito; renderTimeline(); }
+  if(item) { 
+    item.feito = !item.feito; 
+    await _supabase.from('roteiro').update({ feito: item.feito }).eq('id', id);
+    renderTimeline(); 
+  }
 }
 
-function deleteItem(id, type) {
+async function deleteItem(id, type) {
   if(!confirm("Tem certeza que deseja excluir?")) return;
-  if(type === 'roteiro') roteiroData = roteiroData.filter(i => i.id !== id);
-  renderTimeline();
+  await _supabase.from(type).delete().eq('id', id);
+  await loadAllData();
 }
 
 function editRoteiro(id) {
@@ -227,7 +218,6 @@ function renderTimeline() {
   filtered.sort((a,b) => (a.ORDEM || 99) - (b.ORDEM || 99));
 
   filtered.forEach(item => {
-    // TRENS VISUAL
     if (item.CATEGORIA === "ESTAÇÃO" || item.CATEGORIA === "TREM") {
       container.innerHTML += `
         <div class="train-strip" data-id="${item.id}">
@@ -243,7 +233,6 @@ function renderTimeline() {
       return;
     }
     
-    // CARDS NORMAIS
     let catBg = "var(--cat-default)";
     if(item.CATEGORIA === "MUSEU") catBg = "var(--cat-museu)";
     if(item.CATEGORIA === "HOTEL") catBg = "var(--cat-hotel)";
@@ -262,11 +251,9 @@ function renderTimeline() {
           </div>
           <div class="drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
         </div>
-        
         <div class="card-title">${item.ATRAÇÃO}</div>
         ${item.ENDEREÇO || item.REGIÃO ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.ENDEREÇO || ''} ${item.REGIÃO ? '• '+item.REGIÃO : ''}</div>` : ''}
         ${item.OBS ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.OBS}</div>` : ''}
-        
         <div class="card-actions">
           <span class="card-cost">${item.CUSTO ? '€ ' + parseFloat(item.CUSTO).toFixed(2) : ''}</span>
           <div class="action-group">
@@ -278,46 +265,54 @@ function renderTimeline() {
       </div>`;
   });
 
-  // Ativar Drag and Drop restrito apenas ao botão de Grip (handle)
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
-    onEnd: function () {
+    onEnd: async function () {
       const cards = container.children;
-      Array.from(cards).forEach((child, index) => {
-        const id = parseInt(child.getAttribute('data-id'));
+      for (let index = 0; index < cards.length; index++) {
+        const id = parseInt(cards[index].getAttribute('data-id'));
         const target = roteiroData.find(r => r.id === id);
-        if(target) target.ORDEM = index + 1;
-      });
+        if(target) {
+          target.ORDEM = index + 1;
+          await _supabase.from('roteiro').update({ ORDEM: index + 1 }).eq('id', id);
+        }
+      }
     }
   });
 }
 
-function handleRoteiroSubmit(e) {
+async function handleRoteiroSubmit(e) {
   e.preventDefault();
   const idStr = document.getElementById("rot-id").value;
   
   const payload = {
-    "DATA / DIA": document.getElementById("rot-dia").value, "CIDADE": document.getElementById("rot-cidade").value,
-    "ATRAÇÃO": document.getElementById("rot-atracao").value, "CATEGORIA": document.getElementById("rot-categoria").value,
-    "REGIÃO": document.getElementById("rot-regiao").value, "HORÁRIO": document.getElementById("rot-horario").value,
-    "ENDEREÇO": document.getElementById("rot-endereco").value, "CUSTO": parseFloat(document.getElementById("rot-custo").value) || 0,
-    "LINK": document.getElementById("rot-link").value, "OBS": document.getElementById("rot-obs").value
+    "DATA / DIA": document.getElementById("rot-dia").value, 
+    "CIDADE": document.getElementById("rot-cidade").value,
+    "ATRAÇÃO": document.getElementById("rot-atracao").value, 
+    "CATEGORIA": document.getElementById("rot-categoria").value,
+    "REGIÃO": document.getElementById("rot-regiao").value, 
+    "HORÁRIO": document.getElementById("rot-horario").value,
+    "ENDEREÇO": document.getElementById("rot-endereco").value, 
+    "CUSTO": parseFloat(document.getElementById("rot-custo").value) || 0,
+    "LINK": document.getElementById("rot-link").value, 
+    "OBS": document.getElementById("rot-obs").value
   };
 
   if(idStr) {
-    const item = roteiroData.find(i => i.id === parseInt(idStr));
-    Object.assign(item, payload);
+    await _supabase.from('roteiro').update(payload).eq('id', parseInt(idStr));
   } else {
-    payload.id = Date.now();
     payload.ORDEM = 99;
     payload.feito = false;
-    roteiroData.push(payload);
+    await _supabase.from('roteiro').insert([payload]);
   }
-  renderDaysCarousel(); renderCityChips(); renderTimeline(); closeModal('modal-roteiro'); e.target.reset();
+  
+  closeModal('modal-roteiro'); 
+  e.target.reset();
+  await loadAllData();
 }
 
-// --- INTEGRAÇÃO ORÇAMENTO E GASTOS ---
+// --- ORÇAMENTO E GASTOS ---
 function updateEuro() {
   euroMedio = parseFloat(document.getElementById("euro-input").value) || 5.98;
   renderOrcamento(); renderGastos();
@@ -330,8 +325,6 @@ function renderOrcamento() {
 
   orcamentoData.forEach(item => {
     let projEur = item.MOEDA === "BRL" ? (item["PROJETADO (€)"] / euroMedio) : item["PROJETADO (€)"];
-    
-    // O Efetivado agora busca dos gastos reais caso existam na mesma categoria
     let gastosDaCategoria = gastosData.filter(g => g.CATEGORIA === item.CATEGORIA && g.ITEM === item.ITEM);
     let calcEfetEur = 0;
     
@@ -340,7 +333,6 @@ function renderOrcamento() {
         calcEfetEur += g.MOEDA === "BRL" ? (g["VALOR (R$)"] / euroMedio) : g["VALOR (€)"];
       });
     } else {
-      // Se não há gasto real, e estiver PAGO, assume o projetado.
       if(item.STATUS === "PAGO") calcEfetEur = projEur; 
     }
 
@@ -367,15 +359,19 @@ function renderOrcamento() {
   document.getElementById("metric-efet-brl").innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
 }
 
-function handleOrcamentoSubmit(e) {
+async function handleOrcamentoSubmit(e) {
   e.preventDefault();
-  orcamentoData.push({
-    id: Date.now(),
-    "CATEGORIA": document.getElementById("orc-cat").value, "ITEM": document.getElementById("orc-item").value,
-    "STATUS": document.getElementById("orc-status").value, "MOEDA": document.getElementById("orc-moeda").value,
+  const payload = {
+    "CATEGORIA": document.getElementById("orc-cat").value, 
+    "ITEM": document.getElementById("orc-item").value,
+    "STATUS": document.getElementById("orc-status").value, 
+    "MOEDA": document.getElementById("orc-moeda").value,
     "PROJETADO (€)": parseFloat(document.getElementById("orc-proj").value) || 0
-  });
-  renderOrcamento(); closeModal('modal-orcamento'); e.target.reset();
+  };
+  await _supabase.from('orcamento').insert([payload]);
+  closeModal('modal-orcamento'); 
+  e.target.reset();
+  await loadAllData();
 }
 
 function renderGastos() {
@@ -399,15 +395,23 @@ function renderGastos() {
   });
 }
 
-function handleGastosSubmit(e) {
+async function handleGastosSubmit(e) {
   e.preventDefault();
   const moeda = document.getElementById("gas-moeda").value;
   const valor = parseFloat(document.getElementById("gas-valor").value) || 0;
   
-  gastosData.push({
-    id: Date.now(), "DATA": document.getElementById("gas-data").value, "CIDADE": document.getElementById("gas-cidade").value,
-    "CATEGORIA": document.getElementById("gas-cat").value, "ITEM": document.getElementById("gas-item").value,
-    "MOEDA": moeda, "VALOR (€)": moeda === "EUR" ? valor : 0, "VALOR (R$)": moeda === "BRL" ? valor : 0
-  });
-  renderGastos(); renderOrcamento(); closeModal('modal-gastos'); e.target.reset();
+  const payload = {
+    "DATA": document.getElementById("gas-data").value, 
+    "CIDADE": document.getElementById("gas-cidade").value,
+    "CATEGORIA": document.getElementById("gas-cat").value, 
+    "ITEM": document.getElementById("gas-item").value,
+    "MOEDA": moeda, 
+    "VALOR (€)": moeda === "EUR" ? valor : 0, 
+    "VALOR (R$)": moeda === "BRL" ? valor : 0
+  };
+
+  await _supabase.from('gastos').insert([payload]);
+  closeModal('modal-gastos'); 
+  e.target.reset();
+  await loadAllData();
 }
