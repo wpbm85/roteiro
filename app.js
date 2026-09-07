@@ -79,10 +79,10 @@ async function loadAllData() {
   renderGastos();
 }
 
-// --- UTILITÁRIOS DE TRADUÇÃO E DATAS ---
+// --- TRADUÇÃO DE DATAS ---
 function formatDayLabel(dayStr) {
   if (!dayStr) return { num: '--', name: 'DIA', full: '' };
-  const parts = dayStr.split(" ");
+  const parts = dayStr.trim().split(" ");
   const dayNum = parts[0] || "--";
   let dayName = parts[1] ? parts[1].toUpperCase() : "";
   if (DIAS_TRADUCAO[dayName]) dayName = DIAS_TRADUCAO[dayName];
@@ -117,20 +117,29 @@ function populateSelects() {
   uniqueDays.sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
 
   const rotDia = document.getElementById("rot-dia");
-  if(rotDia) rotDia.innerHTML = uniqueDays.map(d => `<option value="${d}">${d}</option>`).join("");
+  if(rotDia) {
+    rotDia.innerHTML = uniqueDays.map(d => {
+      const formatted = formatDayLabel(d);
+      return `<option value="${d}">${formatted.full}</option>`;
+    }).join("");
+  }
 
   const cidadesFixas = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARIS", "ROTERDAM", "DELFT", "HAIA"];
-  const categoriasFixas = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
+  const categoriasRoteiro = ["DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
+  const categoriasFinanceiro = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
 
   const rotCity = document.getElementById("rot-cidade");
   const gasCity = document.getElementById("gas-cidade");
   if(rotCity) rotCity.innerHTML = cidadesFixas.map(c => `<option value="${c}">${c}</option>`).join("");
   if(gasCity) gasCity.innerHTML = cidadesFixas.map(c => `<option value="${c}">${c}</option>`).join("");
 
+  const rotCat = document.getElementById("rot-categoria");
+  if(rotCat) rotCat.innerHTML = categoriasRoteiro.map(c => `<option value="${c}">${c}</option>`).join("");
+
   const gasCat = document.getElementById("gas-cat");
   const orcCat = document.getElementById("orc-cat");
-  if(gasCat) gasCat.innerHTML = categoriasFixas.map(c => `<option value="${c}">${c}</option>`).join("");
-  if(orcCat) orcCat.innerHTML = categoriasFixas.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(gasCat) gasCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(orcCat) orcCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
 function switchTab(tabName, btn) {
@@ -142,9 +151,20 @@ function switchTab(tabName, btn) {
 }
 
 function openContextModal() {
-  document.getElementById("rot-id").value = "";
+  // Limpa formulários ao clicar no botão + (Evita carregar dados antigos)
+  if (currentTab === 'roteiro') {
+    document.getElementById("rot-id").value = "";
+    document.getElementById("form-roteiro").reset();
+  } else if (currentTab === 'orcamento') {
+    document.getElementById("orc-id").value = "";
+    document.getElementById("form-orcamento").reset();
+  } else if (currentTab === 'gastos') {
+    document.getElementById("gas-id").value = "";
+    document.getElementById("form-gastos").reset();
+  }
   document.getElementById(`modal-${currentTab}`).classList.add("active");
 }
+
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("active");
 }
@@ -256,6 +276,24 @@ function renderTimeline() {
 
   filtered.forEach(item => {
     let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
+
+    // ESTAÇÕES - CARD ESTILIZADO DIFERENCIADO
+    if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
+      container.innerHTML += `
+        <div class="train-strip" data-id="${item.id}" style="background:#f0f9ff; border-left:4px solid #0284c7; padding:10px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+          <div class="train-info">
+            <span class="train-title" style="font-weight:700; color:#0369a1;"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
+            <div class="train-route" style="font-size:0.8rem; color:#0284c7;"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
+          </div>
+          <div class="action-group" style="display:flex; gap:4px;">
+            <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
+          </div>
+        </div>`;
+      return;
+    }
+
     let catBg = "var(--cat-default)";
     if(catDisplay === "MUSEU") catBg = "var(--cat-museu)";
     if(catDisplay === "HOTEL") catBg = "var(--cat-hotel)";
@@ -275,7 +313,7 @@ function renderTimeline() {
           <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
         </div>
         
-        <div class="card-title" style="margin-top:6px;">${item.atracao}</div>
+        <div class="card-title" style="margin-top:6px; font-weight:700;">${item.atracao}</div>
         ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao : ''}</div>` : ''}
         ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
         
@@ -291,7 +329,6 @@ function renderTimeline() {
       </div>`;
   });
 
-  // Habilitar Drag & Drop para Desktop e Mobile
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
@@ -358,7 +395,7 @@ function renderOrcamento() {
   orcamentoData.forEach(item => {
     let projEur = item.moeda === "BRL" ? (item.projetado_eur / euroMedio) : item.projetado_eur;
     
-    // Soma gastos reais lançados nesta categoria
+    // Soma lançamentos da aba GASTOS vinculados à mesma Categoria / Item
     let gastosDaCategoria = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
     let calcEfetEur = 0;
     
@@ -373,18 +410,16 @@ function renderOrcamento() {
     projTot += projEur || 0;
     efetTot += calcEfetEur || 0;
 
-    // Subtotais por Categoria
     if (!catTotals[item.categoria]) {
       catTotals[item.categoria] = { proj: 0, efet: 0 };
     }
     catTotals[item.categoria].proj += projEur || 0;
     catTotals[item.categoria].efet += calcEfetEur || 0;
 
-    // Definição de Cores conforme solicitação
     let statusColor = "var(--text-main)";
-    if (item.status === "PAGO") statusColor = "#059669"; // Verde
-    else if (item.status === "A PAGAR") statusColor = "#d97706"; // Amarelo/Dourado
-    else if (item.status === "PROJETADO") statusColor = "#ea580c"; // Laranja
+    if (item.status === "PAGO") statusColor = "#059669";
+    else if (item.status === "A PAGAR") statusColor = "#d97706";
+    else if (item.status === "PROJETADO") statusColor = "#ea580c";
 
     let displayValEur = calcEfetEur > 0 ? calcEfetEur : (projEur || 0);
     let displayValBrl = displayValEur * euroMedio;
@@ -406,13 +441,11 @@ function renderOrcamento() {
       </div>`;
   });
 
-  // Atualizar Métricas do Topo
   document.getElementById("metric-proj-eur").innerText = `€ ${projTot.toFixed(2)}`;
   document.getElementById("metric-proj-brl").innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
   document.getElementById("metric-efet-eur").innerText = `€ ${efetTot.toFixed(2)}`;
   document.getElementById("metric-efet-brl").innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
 
-  // Renderizar Quadro de Subtotais por Categoria
   renderSubtotaisOrcamento(catTotals);
 }
 
@@ -422,20 +455,25 @@ function renderSubtotaisOrcamento(catTotals) {
     subContainer = document.createElement("div");
     subContainer.id = "orcamento-subtotais";
     subContainer.style.marginTop = "20px";
-    subContainer.style.padding = "12px";
-    subContainer.style.background = "#f9fafb";
-    subContainer.style.borderRadius = "8px";
+    subContainer.style.padding = "14px";
+    subContainer.style.background = "#ffffff";
+    subContainer.style.border = "1px solid #e5e7eb";
+    subContainer.style.borderRadius = "12px";
+    subContainer.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
     document.getElementById("tab-orcamento").appendChild(subContainer);
   }
 
-  let html = `<h4 style="margin-bottom:10px; font-size:0.9rem; color:#374151;">RESUMO POR CATEGORIA</h4>`;
+  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:700; color:#374151; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
   for (const [cat, vals] of Object.entries(catTotals)) {
+    let projBrl = vals.proj * euroMedio;
+    let efetBrl = vals.efet * euroMedio;
+
     html += `
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #d1d5db; font-size:0.85rem;">
-        <span><strong>${cat}</strong></span>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:0.85rem;">
+        <span style="font-weight:600; color:#1f2937;">${cat}</span>
         <div style="text-align:right;">
-          <span style="color:#059669; font-weight:600;">€ ${vals.efet.toFixed(2)} pago</span>
-          <div style="font-size:0.75rem; color:#ea580c;">Projetado: € ${vals.proj.toFixed(2)}</div>
+          <div style="color:#059669; font-weight:700;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; color:#6b7280; font-weight:400;">(R$ ${efetBrl.toFixed(2)})</span></div>
+          <div style="font-size:0.75rem; color:#ea580c;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>
         </div>
       </div>`;
   }
@@ -445,6 +483,7 @@ function renderSubtotaisOrcamento(catTotals) {
 function editOrcamento(id) {
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
+  document.getElementById("orc-id").value = item.id;
   document.getElementById("orc-cat").value = item.categoria;
   document.getElementById("orc-item").value = item.item;
   document.getElementById("orc-status").value = item.status;
@@ -455,6 +494,8 @@ function editOrcamento(id) {
 
 async function handleOrcamentoSubmit(e) {
   e.preventDefault();
+  const idStr = document.getElementById("orc-id").value;
+
   const payload = {
     categoria: document.getElementById("orc-cat").value, 
     item: document.getElementById("orc-item").value,
@@ -462,7 +503,13 @@ async function handleOrcamentoSubmit(e) {
     moeda: document.getElementById("orc-moeda").value,
     projetado_eur: parseFloat(document.getElementById("orc-proj").value) || 0
   };
-  await _supabase.from('orcamento').insert([payload]);
+
+  if(idStr) {
+    await _supabase.from('orcamento').update(payload).eq('id', parseInt(idStr));
+  } else {
+    await _supabase.from('orcamento').insert([payload]);
+  }
+
   closeModal('modal-orcamento'); 
   e.target.reset();
   await loadAllData();
@@ -496,6 +543,7 @@ function renderGastos() {
 function editGasto(id) {
   const item = gastosData.find(i => i.id === id);
   if(!item) return;
+  document.getElementById("gas-id").value = item.id;
   document.getElementById("gas-data").value = item.data;
   document.getElementById("gas-cidade").value = item.cidade;
   document.getElementById("gas-cat").value = item.categoria;
@@ -507,6 +555,7 @@ function editGasto(id) {
 
 async function handleGastosSubmit(e) {
   e.preventDefault();
+  const idStr = document.getElementById("gas-id").value;
   const moeda = document.getElementById("gas-moeda").value;
   const valor = parseFloat(document.getElementById("gas-valor").value) || 0;
   
@@ -520,7 +569,12 @@ async function handleGastosSubmit(e) {
     valor_brl: moeda === "BRL" ? valor : 0
   };
 
-  await _supabase.from('gastos').insert([payload]);
+  if(idStr) {
+    await _supabase.from('gastos').update(payload).eq('id', parseInt(idStr));
+  } else {
+    await _supabase.from('gastos').insert([payload]);
+  }
+
   closeModal('modal-gastos'); 
   e.target.reset();
   await loadAllData();
