@@ -18,7 +18,7 @@ const DIAS_TRADUCAO = {
   'MON': 'SEG', 'TUE': 'TER', 'WED': 'QUA', 'THU': 'QUI', 'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
 };
 
-// --- AUTENTICAÇÃO ---
+// --- AUTENTICAÇÃO E INICIALIZAÇÃO ---
 document.addEventListener("DOMContentLoaded", async () => {
   const { data } = await _supabase.auth.getSession();
   if (data.session) {
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function handleLogin(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-senha").value;
   const errBox = document.getElementById("login-error");
@@ -57,11 +57,11 @@ async function startApp() {
   document.getElementById("fab-btn").style.display = "flex";
   document.getElementById("bottom-nav").style.display = "flex";
 
-  await loadAllData();
+  await loadAllData(true); // true = seleciona dia inicial
 }
 
 // --- CARREGAR DADOS DO SUPABASE ---
-async function loadAllData() {
+async function loadAllData(isFirstLoad = false) {
   const { data: rot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
   const { data: orc } = await _supabase.from('orcamento').select('*');
   const { data: gas } = await _supabase.from('gastos').select('*');
@@ -70,7 +70,10 @@ async function loadAllData() {
   orcamentoData = orc || [];
   gastosData = gas || [];
 
-  autoSelectToday();
+  if (isFirstLoad || !currentSelectedDay) {
+    autoSelectToday();
+  }
+  
   populateSelects();
   renderDaysCarousel();
   renderCityChips();
@@ -79,7 +82,7 @@ async function loadAllData() {
   renderGastos();
 }
 
-// --- TRADUÇÃO DE DATAS ---
+// --- TRADUÇÃO DE DATAS E NAVEGAÇÃO ---
 function formatDayLabel(dayStr) {
   if (!dayStr) return { num: '--', name: 'DIA', full: '' };
   const parts = dayStr.trim().split(" ");
@@ -151,18 +154,25 @@ function switchTab(tabName, btn) {
 }
 
 function openContextModal() {
-  // Limpa formulários ao clicar no botão + (Evita carregar dados antigos)
   if (currentTab === 'roteiro') {
-    document.getElementById("rot-id").value = "";
-    document.getElementById("form-roteiro").reset();
+    const elId = document.getElementById("rot-id");
+    if(elId) elId.value = "";
+    const form = document.getElementById("form-roteiro");
+    if(form) form.reset();
+    document.getElementById("modal-roteiro").classList.add("active");
   } else if (currentTab === 'orcamento') {
-    document.getElementById("orc-id").value = "";
-    document.getElementById("form-orcamento").reset();
+    const elId = document.getElementById("orc-id");
+    if(elId) elId.value = "";
+    const form = document.getElementById("form-orcamento");
+    if(form) form.reset();
+    document.getElementById("modal-orcamento").classList.add("active");
   } else if (currentTab === 'gastos') {
-    document.getElementById("gas-id").value = "";
-    document.getElementById("form-gastos").reset();
+    const elId = document.getElementById("gas-id");
+    if(elId) elId.value = "";
+    const form = document.getElementById("form-gastos");
+    if(form) form.reset();
+    document.getElementById("modal-gastos").classList.add("active");
   }
-  document.getElementById(`modal-${currentTab}`).classList.add("active");
 }
 
 function closeModal(modalId) {
@@ -172,6 +182,7 @@ function closeModal(modalId) {
 // --- ROTEIRO ---
 function renderDaysCarousel() {
   const container = document.getElementById("days-carousel-container");
+  if(!container) return;
   container.innerHTML = "";
   let uniqueDays = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))];
   
@@ -193,6 +204,7 @@ function renderDaysCarousel() {
 
 function renderCityChips() {
   const cityBar = document.getElementById("city-bar");
+  if(!cityBar) return;
   let validCities = [...new Set(roteiroData.map(i => i.cidade ? i.cidade.toUpperCase() : "").filter(Boolean))];
   
   if (currentSelectedDay) {
@@ -235,7 +247,7 @@ async function toggleDone(id) {
 async function deleteItem(id, type) {
   if(!confirm("Tem certeza que deseja excluir?")) return;
   await _supabase.from(type).delete().eq('id', id);
-  await loadAllData();
+  await loadAllData(false);
 }
 
 function openMaps(link, atracao, endereco) {
@@ -250,7 +262,8 @@ function openMaps(link, atracao, endereco) {
 function editRoteiro(id) {
   const item = roteiroData.find(i => i.id === id);
   if(!item) return;
-  document.getElementById("rot-id").value = item.id;
+  const elId = document.getElementById("rot-id");
+  if(elId) elId.value = item.id;
   document.getElementById("rot-dia").value = item.dia;
   document.getElementById("rot-cidade").value = item.cidade;
   document.getElementById("rot-categoria").value = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
@@ -266,6 +279,7 @@ function editRoteiro(id) {
 
 function renderTimeline() {
   const container = document.getElementById("timeline-container");
+  if(!container) return;
   container.innerHTML = "";
 
   let filtered = roteiroData.filter(i => i.dia === currentSelectedDay);
@@ -277,7 +291,6 @@ function renderTimeline() {
   filtered.forEach(item => {
     let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
 
-    // ESTAÇÕES - CARD ESTILIZADO DIFERENCIADO
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
       container.innerHTML += `
         <div class="train-strip" data-id="${item.id}" style="background:#f0f9ff; border-left:4px solid #0284c7; padding:10px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -350,8 +363,9 @@ function renderTimeline() {
 }
 
 async function handleRoteiroSubmit(e) {
-  e.preventDefault();
-  const idStr = document.getElementById("rot-id").value;
+  if(e) e.preventDefault();
+  const elId = document.getElementById("rot-id");
+  const idStr = elId ? elId.value : "";
   let catVal = document.getElementById("rot-categoria").value;
   
   const payload = {
@@ -376,8 +390,7 @@ async function handleRoteiroSubmit(e) {
   }
   
   closeModal('modal-roteiro'); 
-  e.target.reset();
-  await loadAllData();
+  await loadAllData(false); // Mantém o dia atual
 }
 
 // --- ORÇAMENTO E GASTOS ---
@@ -388,14 +401,15 @@ function updateEuro() {
 
 function renderOrcamento() {
   const container = document.getElementById("orcamento-list");
+  if(!container) return;
   container.innerHTML = "";
   let projTot = 0, efetTot = 0;
   let catTotals = {};
 
   orcamentoData.forEach(item => {
-    let projEur = item.moeda === "BRL" ? (item.projetado_eur / euroMedio) : item.projetado_eur;
+    // O projetado_eur já está cadastrado em EUR na tabela
+    let projEur = parseFloat(item.projetado_eur) || 0;
     
-    // Soma lançamentos da aba GASTOS vinculados à mesma Categoria / Item
     let gastosDaCategoria = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
     let calcEfetEur = 0;
     
@@ -421,7 +435,7 @@ function renderOrcamento() {
     else if (item.status === "A PAGAR") statusColor = "#d97706";
     else if (item.status === "PROJETADO") statusColor = "#ea580c";
 
-    let displayValEur = calcEfetEur > 0 ? calcEfetEur : (projEur || 0);
+    let displayValEur = calcEfetEur > 0 ? calcEfetEur : projEur;
     let displayValBrl = displayValEur * euroMedio;
 
     container.innerHTML += `
@@ -441,16 +455,24 @@ function renderOrcamento() {
       </div>`;
   });
 
-  document.getElementById("metric-proj-eur").innerText = `€ ${projTot.toFixed(2)}`;
-  document.getElementById("metric-proj-brl").innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
-  document.getElementById("metric-efet-eur").innerText = `€ ${efetTot.toFixed(2)}`;
-  document.getElementById("metric-efet-brl").innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
+  const mProjEur = document.getElementById("metric-proj-eur");
+  const mProjBrl = document.getElementById("metric-proj-brl");
+  const mEfetEur = document.getElementById("metric-efet-eur");
+  const mEfetBrl = document.getElementById("metric-efet-brl");
+
+  if(mProjEur) mProjEur.innerText = `€ ${projTot.toFixed(2)}`;
+  if(mProjBrl) mProjBrl.innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
+  if(mEfetEur) mEfetEur.innerText = `€ ${efetTot.toFixed(2)}`;
+  if(mEfetBrl) mEfetBrl.innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
 
   renderSubtotaisOrcamento(catTotals);
 }
 
 function renderSubtotaisOrcamento(catTotals) {
   let subContainer = document.getElementById("orcamento-subtotais");
+  const tabOrc = document.getElementById("tab-orcamento");
+  if (!tabOrc) return;
+
   if (!subContainer) {
     subContainer = document.createElement("div");
     subContainer.id = "orcamento-subtotais";
@@ -460,7 +482,7 @@ function renderSubtotaisOrcamento(catTotals) {
     subContainer.style.border = "1px solid #e5e7eb";
     subContainer.style.borderRadius = "12px";
     subContainer.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
-    document.getElementById("tab-orcamento").appendChild(subContainer);
+    tabOrc.appendChild(subContainer);
   }
 
   let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:700; color:#374151; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
@@ -483,7 +505,8 @@ function renderSubtotaisOrcamento(catTotals) {
 function editOrcamento(id) {
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
-  document.getElementById("orc-id").value = item.id;
+  const elId = document.getElementById("orc-id");
+  if(elId) elId.value = item.id;
   document.getElementById("orc-cat").value = item.categoria;
   document.getElementById("orc-item").value = item.item;
   document.getElementById("orc-status").value = item.status;
@@ -493,8 +516,9 @@ function editOrcamento(id) {
 }
 
 async function handleOrcamentoSubmit(e) {
-  e.preventDefault();
-  const idStr = document.getElementById("orc-id").value;
+  if(e) e.preventDefault();
+  const elId = document.getElementById("orc-id");
+  const idStr = elId ? elId.value : "";
 
   const payload = {
     categoria: document.getElementById("orc-cat").value, 
@@ -511,12 +535,12 @@ async function handleOrcamentoSubmit(e) {
   }
 
   closeModal('modal-orcamento'); 
-  e.target.reset();
-  await loadAllData();
+  await loadAllData(false);
 }
 
 function renderGastos() {
   const container = document.getElementById("gastos-list");
+  if(!container) return;
   container.innerHTML = "";
   gastosData.forEach(item => {
     let eur = item.moeda === "BRL" ? (item.valor_brl / euroMedio) : item.valor_eur;
@@ -543,7 +567,8 @@ function renderGastos() {
 function editGasto(id) {
   const item = gastosData.find(i => i.id === id);
   if(!item) return;
-  document.getElementById("gas-id").value = item.id;
+  const elId = document.getElementById("gas-id");
+  if(elId) elId.value = item.id;
   document.getElementById("gas-data").value = item.data;
   document.getElementById("gas-cidade").value = item.cidade;
   document.getElementById("gas-cat").value = item.categoria;
@@ -554,8 +579,9 @@ function editGasto(id) {
 }
 
 async function handleGastosSubmit(e) {
-  e.preventDefault();
-  const idStr = document.getElementById("gas-id").value;
+  if(e) e.preventDefault();
+  const elId = document.getElementById("gas-id");
+  const idStr = elId ? elId.value : "";
   const moeda = document.getElementById("gas-moeda").value;
   const valor = parseFloat(document.getElementById("gas-valor").value) || 0;
   
@@ -576,6 +602,24 @@ async function handleGastosSubmit(e) {
   }
 
   closeModal('modal-gastos'); 
-  e.target.reset();
-  await loadAllData();
+  await loadAllData(false);
 }
+
+// Tornar funções acessíveis para os handlers no HTML e botões FAB
+window.openContextModal = openContextModal;
+window.closeModal = closeModal;
+window.switchTab = switchTab;
+window.handleRoteiroSubmit = handleRoteiroSubmit;
+window.handleOrcamentoSubmit = handleOrcamentoSubmit;
+window.handleGastosSubmit = handleGastosSubmit;
+window.handleLogin = handleLogin;
+window.logout = logout;
+window.editRoteiro = editRoteiro;
+window.editOrcamento = editOrcamento;
+window.editGasto = editGasto;
+window.deleteItem = deleteItem;
+window.toggleDone = toggleDone;
+window.openMaps = openMaps;
+window.updateEuro = updateEuro;
+window.filterCity = filterCity;
+window.setDoneFilter = setDoneFilter;
