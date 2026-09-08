@@ -23,8 +23,19 @@ function normalizeStr(str) {
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// --- AUTENTICAÇÃO E INICIALIZAÇÃO ---
+// --- AUTENTICAÇÃO E INICIALIZAÇÃO COM PERSISTÊNCIA ---
 document.addEventListener("DOMContentLoaded", async () => {
+  _supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    if (currentSession) {
+      session = currentSession;
+      startApp();
+    } else {
+      session = null;
+      const loginModal = document.getElementById("modal-login");
+      if (loginModal) loginModal.classList.add("active");
+    }
+  });
+
   const { data } = await _supabase.auth.getSession();
   if (data.session) {
     session = data.session;
@@ -38,13 +49,15 @@ async function handleLogin(e) {
   const password = document.getElementById("login-senha").value;
   const errBox = document.getElementById("login-error");
 
-  errBox.style.display = "none";
+  if (errBox) errBox.style.display = "none";
 
   const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
   
   if (error) {
-    errBox.innerText = `Erro: ${error.message}`;
-    errBox.style.display = "block";
+    if (errBox) {
+      errBox.innerText = `Erro: ${error.message}`;
+      errBox.style.display = "block";
+    }
   } else {
     session = data.session;
     startApp();
@@ -57,10 +70,17 @@ async function logout() {
 }
 
 async function startApp() {
-  document.getElementById("modal-login").classList.remove("active");
-  document.getElementById("main-content").style.display = "block";
-  document.getElementById("fab-btn").style.display = "flex";
-  document.getElementById("bottom-nav").style.display = "flex";
+  const loginModal = document.getElementById("modal-login");
+  if (loginModal) loginModal.classList.remove("active");
+  
+  const mainContent = document.getElementById("main-content");
+  if (mainContent) mainContent.style.display = "block";
+  
+  const fabBtn = document.getElementById("fab-btn");
+  if (fabBtn) fabBtn.style.display = "flex";
+  
+  const bottomNav = document.getElementById("bottom-nav");
+  if (bottomNav) bottomNav.style.display = "flex";
 
   await loadAllData(true);
 }
@@ -430,35 +450,50 @@ function renderOrcamento() {
     projTot += projEur;
 
     let catName = item.categoria.trim();
+    let normCat = normalizeStr(catName);
+    let normItem = normalizeStr(item.item);
+
     if (!catTotals[catName]) {
       catTotals[catName] = { proj: 0, efet: 0 };
     }
     catTotals[catName].proj += projEur;
 
-    if (item.status === "PAGO") {
-      let normItem = normalizeStr(item.item);
-      let temGastoReal = gastosData.some(g => normalizeStr(g.item) === normItem);
-      if (!temGastoReal) {
-        efetivoOrcamentoPagos += projEur;
-        catTotals[catName].efet += projEur;
-      }
+    let gastoVinculado = gastosData.find(g => {
+      let gItemNorm = normalizeStr(g.item);
+      let gCatNorm = normalizeStr(g.categoria);
+      return gItemNorm === normItem || normItem.includes(gItemNorm) || (gCatNorm === normCat && normItem.includes(normalizeStr(g.cidade)));
+    });
+
+    let displayValEur = projEur;
+    let statusText = item.status;
+    let statusColor = "var(--text-main)";
+
+    if (gastoVinculado) {
+      let valGastoEur = gastoVinculado.moeda === "BRL" ? (parseFloat(gastoVinculado.valor_brl) / euroMedio) : parseFloat(gastoVinculado.valor_eur);
+      displayValEur = valGastoEur;
+      statusText = "GASTO REAL";
+      statusColor = "#059669";
+      catTotals[catName].efet += valGastoEur;
+    } else if (item.status === "PAGO") {
+      statusColor = "#059669";
+      efetivoOrcamentoPagos += projEur;
+      catTotals[catName].efet += projEur;
+    } else if (item.status === "A PAGAR") {
+      statusColor = "#d97706";
+    } else {
+      statusColor = "#ea580c";
     }
 
-    let statusColor = "var(--text-main)";
-    if (item.status === "PAGO") statusColor = "#059669";
-    else if (item.status === "A PAGAR") statusColor = "#d97706";
-    else if (item.status === "PROJETADO") statusColor = "#ea580c";
-
-    let displayValBrl = projEur * euroMedio;
+    let displayValBrl = displayValEur * euroMedio;
 
     container.innerHTML += `
       <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
           <div style="font-weight:700;">${item.item}</div>
-          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:700;">${item.status}</span></div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:700;">${statusText}</span> ${gastoVinculado ? `<span style="font-size:0.7rem; opacity:0.8;">(Proj: € ${projEur.toFixed(2)})</span>` : ''}</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
-          <div style="font-weight:800; color:${statusColor}">€ ${projEur.toFixed(2)}</div>
+          <div style="font-weight:800; color:${statusColor}">€ ${displayValEur.toFixed(2)}</div>
           <div class="list-item-sub" style="font-size:0.75rem;">R$ ${displayValBrl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editOrcamento(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
@@ -470,8 +505,8 @@ function renderOrcamento() {
 
   for (const [catName, val] of Object.entries(catTotals)) {
     let catNorm = normalizeStr(catName);
-    if (gastosPorCat[catNorm]) {
-      val.efet = Math.max(val.efet, gastosPorCat[catNorm]);
+    if (val.efet === 0 && gastosPorCat[catNorm]) {
+      val.efet = gastosPorCat[catNorm];
     }
   }
 
