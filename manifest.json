@@ -8,10 +8,9 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%232563eb'/><path fill='%23ffffff' d='M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-82.8 82.8c-11.2 11.2-28.5 13.4-42.1 5.3s-20.9-23.7-18.2-39.1l17.8-100.8L18 290.3c-11.5-5.5-18-17.3-17-30s9.6-22.3 21.9-24.9l448-96c10.6-2.3 21.8 1.1 29.2 8.2z'/></svg>",
+      "src": "./icon.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

@@ -65,7 +65,6 @@ async function startApp() {
   await loadAllData(true);
 }
 
-// --- CARREGAR DADOS DO SUPABASE ---
 async function loadAllData(isFirstLoad = false) {
   const { data: rot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
   const { data: orc } = await _supabase.from('orcamento').select('*');
@@ -87,7 +86,6 @@ async function loadAllData(isFirstLoad = false) {
   renderGastos();
 }
 
-// --- TRADUÇÃO DE DATAS E NAVEGAÇÃO ---
 function formatDayLabel(dayStr) {
   if (!dayStr) return { num: '--', name: 'DIA', full: '' };
   const parts = dayStr.trim().split(" ");
@@ -185,7 +183,6 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("active");
 }
 
-// --- ROTEIRO ---
 function renderDaysCarousel() {
   const container = document.getElementById("days-carousel-container");
   if(!container) return;
@@ -321,7 +318,6 @@ function renderTimeline() {
 
     const isFeito = item.feito ? 'feito' : '';
     const btnFeitoClass = item.feito ? 'active' : '';
-
     const hasMapsLink = item.link && item.link.trim().startsWith("http");
 
     container.innerHTML += `
@@ -401,7 +397,6 @@ async function handleRoteiroSubmit(e) {
   await loadAllData(false);
 }
 
-// --- ORÇAMENTO E GASTOS ---
 function updateEuro() {
   euroMedio = parseFloat(document.getElementById("euro-input").value) || 5.98;
   renderOrcamento(); renderGastos();
@@ -414,7 +409,6 @@ function renderOrcamento() {
   let projTot = 0;
   let catTotals = {};
 
-  // 1. Soma Real Incondicional da Aba GASTOS
   let totalGastosReais = 0;
   let gastosPorCat = {};
 
@@ -427,9 +421,7 @@ function renderOrcamento() {
     gastosPorCat[catNorm] += (valEur || 0);
   });
 
-  // 2. Processa o Orçamento Projetado
   let efetivoOrcamentoPagos = 0;
-
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
   let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
@@ -438,14 +430,11 @@ function renderOrcamento() {
     projTot += projEur;
 
     let catName = item.categoria.trim();
-    let catNorm = normalizeStr(catName);
-
     if (!catTotals[catName]) {
       catTotals[catName] = { proj: 0, efet: 0 };
     }
     catTotals[catName].proj += projEur;
 
-    // Se o item do Orçamento está marcado como PAGO e não é um lançamento genérico, contabiliza no projetado
     if (item.status === "PAGO") {
       let normItem = normalizeStr(item.item);
       let temGastoReal = gastosData.some(g => normalizeStr(g.item) === normItem);
@@ -479,7 +468,6 @@ function renderOrcamento() {
       </div>`;
   });
 
-  // Atualiza a soma efetuada por Categoria com os gastos reais
   for (const [catName, val] of Object.entries(catTotals)) {
     let catNorm = normalizeStr(catName);
     if (gastosPorCat[catNorm]) {
@@ -487,11 +475,9 @@ function renderOrcamento() {
     }
   }
 
-  // O Efetivado total é rigorosamente a soma dos Gastos Reais + Itens Pagos do Orçamento que não estão duplicados
   let efetTot = totalGastosReais + efetivoOrcamentoPagos;
   let aPagarEur = Math.max(0, projTot - efetTot);
 
-  // Atualização dos Cards de Métricas
   const mProjEur = document.getElementById("metric-proj-eur");
   const mProjBrl = document.getElementById("metric-proj-brl");
   const mEfetEur = document.getElementById("metric-efet-eur");
@@ -528,7 +514,6 @@ function renderSubtotaisOrcamento(catTotals) {
   for (const [cat, vals] of Object.entries(catTotals)) {
     let projBrl = vals.proj * euroMedio;
     let efetBrl = vals.efet * euroMedio;
-
     let isEquals = Math.abs(vals.proj - vals.efet) < 0.05;
 
     html += `
@@ -596,7 +581,7 @@ function formatGastoDateLabel(dateStr) {
   const day = parseInt(parts[2]);
   
   const dateObj = new Date(year, month, day);
-  const diasSemana = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const diasSemana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
   const dayOfWeekStr = diasSemana[dateObj.getDay()];
   
   const formattedDay = (parts[2].length === 1 ? '0' + parts[2] : parts[2]) + "/" + (parts[1].length === 1 ? '0' + parts[1] : parts[1]);
@@ -738,7 +723,6 @@ function exportToXLSX() {
   XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
 
-// Global Exports
 window.openContextModal = openContextModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
