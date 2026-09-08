@@ -411,45 +411,49 @@ function renderOrcamento() {
   const container = document.getElementById("orcamento-list");
   if(!container) return;
   container.innerHTML = "";
-  let projTot = 0, efetTot = 0;
+  let projTot = 0;
   let catTotals = {};
 
-  // Totalizador real e exclusivo da aba GASTOS
+  // 1. Soma Real Incondicional da Aba GASTOS
   let totalGastosReais = 0;
+  let gastosPorCat = {};
+
   gastosData.forEach(g => {
     let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
     totalGastosReais += (valEur || 0);
+
+    let catNorm = normalizeStr(g.categoria);
+    if (!gastosPorCat[catNorm]) gastosPorCat[catNorm] = 0;
+    gastosPorCat[catNorm] += (valEur || 0);
   });
+
+  // 2. Processa o Orçamento Projetado
+  let efetivoOrcamentoPagos = 0;
 
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
   let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
   sortedOrcamento.forEach(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
-    let normCat = normalizeStr(item.categoria);
-    let normItem = normalizeStr(item.item);
-    
-    // Busca se existe um gasto real vinculado especificamente a este item
-    let gastosDoItem = gastosData.filter(g => normalizeStr(g.item) === normItem || normItem.includes(normalizeStr(g.item)));
-    let calcEfetEur = 0;
-
-    if (gastosDoItem.length > 0) {
-      gastosDoItem.forEach(g => {
-        calcEfetEur += g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
-      });
-    } else if (item.status === "PAGO") {
-      calcEfetEur = projEur;
-    }
-
     projTot += projEur;
-    efetTot += calcEfetEur;
 
     let catName = item.categoria.trim();
+    let catNorm = normalizeStr(catName);
+
     if (!catTotals[catName]) {
       catTotals[catName] = { proj: 0, efet: 0 };
     }
     catTotals[catName].proj += projEur;
-    catTotals[catName].efet += calcEfetEur;
+
+    // Se o item do Orçamento está marcado como PAGO e não é um lançamento genérico, contabiliza no projetado
+    if (item.status === "PAGO") {
+      let normItem = normalizeStr(item.item);
+      let temGastoReal = gastosData.some(g => normalizeStr(g.item) === normItem);
+      if (!temGastoReal) {
+        efetivoOrcamentoPagos += projEur;
+        catTotals[catName].efet += projEur;
+      }
+    }
 
     let statusColor = "var(--text-main)";
     if (item.status === "PAGO") statusColor = "#059669";
@@ -475,18 +479,25 @@ function renderOrcamento() {
       </div>`;
   });
 
-  // Garante que o total Efetivado inclua todos os gastos da aba Gastos que não estavam no Orçamento fixo
-  let efetivoFinal = Math.max(efetTot, totalGastosReais + (efetTot - totalGastosReais));
+  // Atualiza a soma efetuada por Categoria com os gastos reais
+  for (const [catName, val] of Object.entries(catTotals)) {
+    let catNorm = normalizeStr(catName);
+    if (gastosPorCat[catNorm]) {
+      val.efet = Math.max(val.efet, gastosPorCat[catNorm]);
+    }
+  }
 
-  // Métricas Principais
+  // O Efetivado total é rigorosamente a soma dos Gastos Reais + Itens Pagos do Orçamento que não estão duplicados
+  let efetTot = totalGastosReais + efetivoOrcamentoPagos;
+  let aPagarEur = Math.max(0, projTot - efetTot);
+
+  // Atualização dos Cards de Métricas
   const mProjEur = document.getElementById("metric-proj-eur");
   const mProjBrl = document.getElementById("metric-proj-brl");
   const mEfetEur = document.getElementById("metric-efet-eur");
   const mEfetBrl = document.getElementById("metric-efet-brl");
   const mDifEur  = document.getElementById("metric-dif-eur");
   const mDifBrl  = document.getElementById("metric-dif-brl");
-
-  let aPagarEur = Math.max(0, projTot - efetTot);
 
   if(mProjEur) mProjEur.innerText = `€ ${projTot.toFixed(2)}`;
   if(mProjBrl) mProjBrl.innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
