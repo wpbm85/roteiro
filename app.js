@@ -414,31 +414,54 @@ function renderOrcamento() {
   let projTot = 0, efetTot = 0;
   let catTotals = {};
 
+  // Mapeamento global de todos os gastos por categoria e cidade
+  let gastosPorCatECidade = {};
+  gastosData.forEach(g => {
+    let catNorm = normalizeStr(g.categoria);
+    let cidNorm = normalizeStr(g.cidade);
+    let key = `${catNorm}_${cidNorm}`;
+    let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
+    
+    if (!gastosPorCatECidade[key]) gastosPorCatECidade[key] = 0;
+    if (!gastosPorCatECidade[catNorm]) gastosPorCatECidade[catNorm] = 0;
+    
+    gastosPorCatECidade[key] += (valEur || 0);
+    gastosPorCatECidade[catNorm] += (valEur || 0);
+  });
+
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
   let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
   sortedOrcamento.forEach(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
     
-    // Busca e soma gastos efetuados vinculados por Nome OU por Categoria
     let normCat = normalizeStr(item.categoria);
     let normItem = normalizeStr(item.item);
-
-    let gastosDoItem = gastosData.filter(g => {
-      let gCat = normalizeStr(g.categoria);
-      let gItem = normalizeStr(g.item);
-      return (gCat === normCat && gItem === normItem) || (gItem.includes(normCat) || normItem.includes(gItem));
-    });
-
+    
+    // Busca se há gastos efetuados pelo Nome do Item OU pela Categoria + Cidade
     let calcEfetEur = 0;
     
-    if (gastosDoItem.length > 0) {
-      gastosDoItem.forEach(g => {
-        let valEurGasto = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
-        calcEfetEur += valEurGasto || 0;
+    // 1. Busca por nome exato do item
+    let gastosExatos = gastosData.filter(g => normalizeStr(g.item) === normItem || normItem.includes(normalizeStr(g.item)));
+    if (gastosExatos.length > 0) {
+      gastosExatos.forEach(g => {
+        calcEfetEur += g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
       });
     } else {
-      if(item.status === "PAGO") calcEfetEur = projEur; 
+      // 2. Se não houver gasto com nome exato, verifica se há gastos lançados na categoria
+      let cidadeEncontrada = "";
+      ["amsterdam", "bruxelas", "gent", "bruges", "paris", "roterdam", "delft", "haia"].forEach(c => {
+        if (normItem.includes(c)) cidadeEncontrada = c;
+      });
+
+      let keyCidade = `${normCat}_${cidadeEncontrada}`;
+      if (cidadeEncontrada && gastosPorCatECidade[keyCidade] > 0) {
+        calcEfetEur = gastosPorCatECidade[keyCidade];
+      } else if (gastosPorCatECidade[normCat] > 0 && !cidadeEncontrada) {
+        calcEfetEur = gastosPorCatECidade[normCat];
+      } else if (item.status === "PAGO") {
+        calcEfetEur = projEur; 
+      }
     }
 
     projTot += projEur;
@@ -475,7 +498,7 @@ function renderOrcamento() {
       </div>`;
   });
 
-  // Métricas
+  // Métricas Principais
   const mProjEur = document.getElementById("metric-proj-eur");
   const mProjBrl = document.getElementById("metric-proj-brl");
   const mEfetEur = document.getElementById("metric-efet-eur");
@@ -574,7 +597,7 @@ async function handleOrcamentoSubmit(e) {
 
 function formatGastoDateLabel(dateStr) {
   if (!dateStr) return "--";
-  let cleanDate = dateStr.split("T")[0];
+  let cleanDate = dateStr.toString().trim().split("T")[0];
   const parts = cleanDate.split("-");
   if (parts.length < 3) return dateStr;
   const year = parseInt(parts[0]);
@@ -660,13 +683,15 @@ function editGasto(id) {
   const elId = document.getElementById("gas-id");
   if(elId) elId.value = item.id;
   
-  // Sanitização estrita para o input YYYY-MM-DD
+  // Trata e isola estritamente YYYY-MM-DD para o input HTML date
   let rawDate = "";
   if (item.data) {
-    rawDate = item.data.toString().trim().split("T")[0];
-    if (rawDate.includes("/")) {
-      const p = rawDate.split("/");
+    let clean = item.data.toString().trim().split("T")[0];
+    if (clean.includes("/")) {
+      const p = clean.split("/");
       if (p.length === 3) rawDate = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    } else {
+      rawDate = clean;
     }
   }
   document.getElementById("gas-data").value = rawDate;
