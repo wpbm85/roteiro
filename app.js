@@ -18,7 +18,6 @@ const DIAS_TRADUCAO = {
   'MON': 'SEG', 'TUE': 'TER', 'WED': 'QUA', 'THU': 'QUI', 'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
 };
 
-// Normalizar strings para cruzamento perfeito ignorando espaços extras, acentos e caixa alta/baixa
 function normalizeStr(str) {
   if (!str) return "";
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -419,14 +418,18 @@ function renderOrcamento() {
   let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
   sortedOrcamento.forEach(item => {
-    // Valor em Euros absoluto do Orçamento
     let projEur = parseFloat(item.projetado_eur) || 0;
     
-    // Busca gastos efetuados vinculados por nome (com normalização de string)
+    // Busca e soma gastos efetuados vinculados por Nome OU por Categoria
     let normCat = normalizeStr(item.categoria);
     let normItem = normalizeStr(item.item);
 
-    let gastosDoItem = gastosData.filter(g => normalizeStr(g.categoria) === normCat && normalizeStr(g.item) === normItem);
+    let gastosDoItem = gastosData.filter(g => {
+      let gCat = normalizeStr(g.categoria);
+      let gItem = normalizeStr(g.item);
+      return (gCat === normCat && gItem === normItem) || (gItem.includes(normCat) || normItem.includes(gItem));
+    });
+
     let calcEfetEur = 0;
     
     if (gastosDoItem.length > 0) {
@@ -472,7 +475,7 @@ function renderOrcamento() {
       </div>`;
   });
 
-  // Atualizar os 3 Quadros de Métricas
+  // Métricas
   const mProjEur = document.getElementById("metric-proj-eur");
   const mProjBrl = document.getElementById("metric-proj-brl");
   const mEfetEur = document.getElementById("metric-efet-eur");
@@ -571,7 +574,8 @@ async function handleOrcamentoSubmit(e) {
 
 function formatGastoDateLabel(dateStr) {
   if (!dateStr) return "--";
-  const parts = dateStr.split("-");
+  let cleanDate = dateStr.split("T")[0];
+  const parts = cleanDate.split("-");
   if (parts.length < 3) return dateStr;
   const year = parseInt(parts[0]);
   const month = parseInt(parts[1]) - 1;
@@ -656,7 +660,15 @@ function editGasto(id) {
   const elId = document.getElementById("gas-id");
   if(elId) elId.value = item.id;
   
-  let rawDate = item.data ? item.data.split("T")[0] : "";
+  // Sanitização estrita para o input YYYY-MM-DD
+  let rawDate = "";
+  if (item.data) {
+    rawDate = item.data.toString().trim().split("T")[0];
+    if (rawDate.includes("/")) {
+      const p = rawDate.split("/");
+      if (p.length === 3) rawDate = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    }
+  }
   document.getElementById("gas-data").value = rawDate;
   
   document.getElementById("gas-cidade").value = item.cidade || "GERAL";
