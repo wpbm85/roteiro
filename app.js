@@ -18,6 +18,12 @@ const DIAS_TRADUCAO = {
   'MON': 'SEG', 'TUE': 'TER', 'WED': 'QUA', 'THU': 'QUI', 'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
 };
 
+// Normalizar strings para evitar falhas em acentos/caixa alta na busca de correspondência
+function normalizeStr(str) {
+  if (!str) return "";
+  return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 // --- AUTENTICAÇÃO E INICIALIZAÇÃO ---
 document.addEventListener("DOMContentLoaded", async () => {
   const { data } = await _supabase.auth.getSession();
@@ -171,6 +177,8 @@ function openContextModal() {
     if(elId) elId.value = "";
     const form = document.getElementById("form-gastos");
     if(form) form.reset();
+    // Preencher com data de hoje padrão ao abrir novo gasto
+    document.getElementById("gas-data").value = new Date().toISOString().split('T')[0];
     document.getElementById("modal-gastos").classList.add("active");
   }
 }
@@ -253,7 +261,7 @@ async function deleteItem(id, type) {
 function openMaps(link, atracao, endereco) {
   if (link && link.startsWith("http")) {
     window.open(link, '_blank');
-  } else {
+  } else if (atracao) {
     const query = encodeURIComponent(`${atracao} ${endereco || ''}`);
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   }
@@ -316,6 +324,9 @@ function renderTimeline() {
     const isFeito = item.feito ? 'feito' : '';
     const btnFeitoClass = item.feito ? 'active' : '';
 
+    // Botão de Maps só renderiza se houver link cadastrado
+    const hasMapsLink = item.link && item.link.trim().startsWith("http");
+
     container.innerHTML += `
       <div class="card ${isFeito}" data-id="${item.id}">
         <div class="card-top" style="display:flex; justify-content:space-between; align-items:center;">
@@ -333,7 +344,7 @@ function renderTimeline() {
         <div class="card-actions" style="margin-top:10px; display:flex; justify-content:flex-end;">
           <div class="action-group" style="display:flex; gap:6px; align-items:center;">
              <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-             <button class="btn-act" onclick="openMaps('${item.link || ''}', '${item.atracao}', '${item.endereco || ''}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>
+             ${hasMapsLink ? `<button class="btn-act" onclick="openMaps('${item.link}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>` : ''}
              <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
              <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
              <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -342,7 +353,6 @@ function renderTimeline() {
       </div>`;
   });
 
-  // Reordenar Habilitado para todos os dias no celular
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
@@ -407,21 +417,23 @@ function renderOrcamento() {
   let projTot = 0, efetTot = 0;
   let catTotals = {};
 
-  // Ordenação prioritária: 1º PAGO, 2º A PAGAR, 3º PROJETADO
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
   let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
   sortedOrcamento.forEach(item => {
-    let rawVal = parseFloat(item.projetado_eur) || 0;
-    let projEur = item.moeda === "BRL" ? (rawVal / euroMedio) : rawVal;
+    // No banco, o valor do orçamento já é o valor oficial em Euros!
+    let projEur = parseFloat(item.projetado_eur) || 0;
     
-    // Soma gastos da aba GASTOS correspondentes a essa Categoria / Item
-    let gastosDoItem = gastosData.filter(g => g.categoria === item.categoria && g.item === item.item);
+    // Busca gastos efetuados na aba Gastos correspondentes a esse item (usando normalização)
+    let normCat = normalizeStr(item.categoria);
+    let normItem = normalizeStr(item.item);
+
+    let gastosDoItem = gastosData.filter(g => normalizeStr(g.categoria) === normCat && normalizeStr(g.item) === normItem);
     let calcEfetEur = 0;
     
     if (gastosDoItem.length > 0) {
       gastosDoItem.forEach(g => {
-        calcEfetEur += g.moeda === "BRL" ? (g.valor_brl / euroMedio) : g.valor_eur;
+        calcEfetEur += g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
       });
     } else {
       if(item.status === "PAGO") calcEfetEur = projEur; 
@@ -460,15 +472,22 @@ function renderOrcamento() {
       </div>`;
   });
 
+  // Atualizar os 3 Quadros de Métricas
   const mProjEur = document.getElementById("metric-proj-eur");
   const mProjBrl = document.getElementById("metric-proj-brl");
   const mEfetEur = document.getElementById("metric-efet-eur");
   const mEfetBrl = document.getElementById("metric-efet-brl");
+  const mDifEur  = document.getElementById("metric-dif-eur");
+  const mDifBrl  = document.getElementById("metric-dif-brl");
+
+  let aPagarEur = Math.max(0, projTot - efetTot);
 
   if(mProjEur) mProjEur.innerText = `€ ${projTot.toFixed(2)}`;
   if(mProjBrl) mProjBrl.innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
   if(mEfetEur) mEfetEur.innerText = `€ ${efetTot.toFixed(2)}`;
   if(mEfetBrl) mEfetBrl.innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
+  if(mDifEur)  mDifEur.innerText  = `€ ${aPagarEur.toFixed(2)}`;
+  if(mDifBrl)  mDifBrl.innerText  = `R$ ${(aPagarEur * euroMedio).toFixed(2)}`;
 
   renderSubtotaisOrcamento(catTotals);
 }
@@ -516,7 +535,11 @@ function editOrcamento(id) {
   document.getElementById("orc-item").value = item.item;
   document.getElementById("orc-status").value = item.status;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
-  document.getElementById("orc-proj").value = item.projetado_eur;
+  
+  // Se for cadastrado em BRL, exibe em R$ ao editar
+  let valInput = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
+  document.getElementById("orc-proj").value = parseFloat(valInput).toFixed(2);
+  
   document.getElementById("modal-orcamento").classList.add("active");
 }
 
@@ -524,13 +547,18 @@ async function handleOrcamentoSubmit(e) {
   if(e) e.preventDefault();
   const elId = document.getElementById("orc-id");
   const idStr = elId ? elId.value : "";
+  const moeda = document.getElementById("orc-moeda").value;
+  const valRaw = parseFloat(document.getElementById("orc-proj").value) || 0;
+
+  // Garante a conversão para Euros ao salvar no banco
+  const projEurVal = moeda === "BRL" ? (valRaw / euroMedio) : valRaw;
 
   const payload = {
     categoria: document.getElementById("orc-cat").value, 
     item: document.getElementById("orc-item").value,
     status: document.getElementById("orc-status").value, 
-    moeda: document.getElementById("orc-moeda").value,
-    projetado_eur: parseFloat(document.getElementById("orc-proj").value) || 0
+    moeda: moeda,
+    projetado_eur: projEurVal
   };
 
   if(idStr) {
@@ -543,6 +571,23 @@ async function handleOrcamentoSubmit(e) {
   await loadAllData(false);
 }
 
+function formatGastoDateLabel(dateStr) {
+  if (!dateStr) return "--";
+  // Esperado AAAA-MM-DD
+  const parts = dateStr.split("-");
+  if (parts.length < 3) return dateStr;
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]) - 1;
+  const day = parseInt(parts[2]);
+  
+  const dateObj = new Date(year, month, day);
+  const diasSemana = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const dayOfWeekStr = diasSemana[dateObj.getDay()];
+  
+  const formattedDay = parts[2] + "/" + parts[1];
+  return `${formattedDay} ${dayOfWeekStr}`;
+}
+
 function renderGastos() {
   const container = document.getElementById("gastos-list");
   if(!container) return;
@@ -550,17 +595,19 @@ function renderGastos() {
   let catGastos = {};
 
   gastosData.forEach(item => {
-    let eur = item.moeda === "BRL" ? (item.valor_brl / euroMedio) : item.valor_eur;
-    let brl = item.moeda === "EUR" ? (item.valor_eur * euroMedio) : item.valor_brl;
+    let eur = item.moeda === "BRL" ? (parseFloat(item.valor_brl) / euroMedio) : parseFloat(item.valor_eur);
+    let brl = item.moeda === "EUR" ? (parseFloat(item.valor_eur) * euroMedio) : parseFloat(item.valor_brl);
     
     if(!catGastos[item.categoria]) catGastos[item.categoria] = 0;
     catGastos[item.categoria] += eur;
+
+    let dateDisplay = formatGastoDateLabel(item.data);
 
     container.innerHTML += `
       <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
           <span class="list-item-title" style="font-weight:700;">${item.item}</span>
-          <div class="list-item-sub" style="font-size:0.8rem;">${item.data} • ${item.categoria} (${item.cidade || ''})</div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${dateDisplay} • ${item.categoria} (${item.cidade || ''})</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
           <div class="list-item-val" style="font-weight:800;">€ ${eur.toFixed(2)}</div>
@@ -610,12 +657,19 @@ function editGasto(id) {
   if(!item) return;
   const elId = document.getElementById("gas-id");
   if(elId) elId.value = item.id;
-  document.getElementById("gas-data").value = item.data;
-  document.getElementById("gas-cidade").value = item.cidade;
+  
+  // Garantir carregamento da data no input date (formato YYYY-MM-DD)
+  let rawDate = item.data ? item.data.split("T")[0] : "";
+  document.getElementById("gas-data").value = rawDate;
+  
+  document.getElementById("gas-cidade").value = item.cidade || "GERAL";
   document.getElementById("gas-cat").value = item.categoria;
   document.getElementById("gas-item").value = item.item;
   document.getElementById("gas-moeda").value = item.moeda || "EUR";
-  document.getElementById("gas-valor").value = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
+  
+  let valGasto = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
+  document.getElementById("gas-valor").value = parseFloat(valGasto).toFixed(2);
+  
   document.getElementById("modal-gastos").classList.add("active");
 }
 
@@ -632,8 +686,8 @@ async function handleGastosSubmit(e) {
     categoria: document.getElementById("gas-cat").value, 
     item: document.getElementById("gas-item").value,
     moeda: moeda, 
-    valor_eur: moeda === "EUR" ? valor : 0, 
-    valor_brl: moeda === "BRL" ? valor : 0
+    valor_eur: moeda === "EUR" ? valor : (valor / euroMedio), 
+    valor_brl: moeda === "BRL" ? valor : (valor * euroMedio)
   };
 
   if(idStr) {
@@ -644,6 +698,21 @@ async function handleGastosSubmit(e) {
 
   closeModal('modal-gastos'); 
   await loadAllData(false);
+}
+
+// Função para exportar os dados acumulados para um arquivo XLSX
+function exportToXLSX() {
+  const wb = XLSX.utils.book_new();
+  
+  const wsRot = XLSX.utils.json_to_sheet(roteiroData);
+  const wsOrc = XLSX.utils.json_to_sheet(orcamentoData);
+  const wsGas = XLSX.utils.json_to_sheet(gastosData);
+
+  XLSX.utils.book_append_sheet(wb, wsRot, "ROTEIRO");
+  XLSX.utils.book_append_sheet(wb, wsOrc, "ORÇAMENTO");
+  XLSX.utils.book_append_sheet(wb, wsGas, "GASTOS");
+
+  XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
 
 // Global Exports
@@ -664,3 +733,4 @@ window.openMaps = openMaps;
 window.updateEuro = updateEuro;
 window.filterCity = filterCity;
 window.setDoneFilter = setDoneFilter;
+window.exportToXLSX = exportToXLSX;

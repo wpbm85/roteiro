@@ -53,6 +53,7 @@
       <i class="fa-solid fa-plane-departure brand-icon"></i> <span class="brand-title">Europa 2027</span>
     </div>
     <div class="header-actions">
+      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i></button>
       <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
     </div>
   </header>
@@ -78,16 +79,21 @@
         <span class="euro-label"><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
         <input type="number" step="0.01" id="euro-input" value="5.98" class="euro-field" onchange="updateEuro()">
       </div>
-      <div class="metrics-grid">
+      <div class="metrics-grid-3">
         <div class="metric-card">
-          <div class="metric-title">PROJETADO (ORÇAMENTO)</div>
+          <div class="metric-title">PROJETADO</div>
           <div class="metric-val" id="metric-proj-eur">€ 0,00</div>
           <div class="metric-sub" id="metric-proj-brl">R$ 0,00</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">EFETIVADO (PAGO)</div>
+          <div class="metric-title">EFETIVADO</div>
           <div class="metric-val" id="metric-efet-eur" style="color: #059669;">€ 0,00</div>
           <div class="metric-sub" id="metric-efet-brl">R$ 0,00</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">A PAGAR</div>
+          <div class="metric-val" id="metric-dif-eur" style="color: #d97706;">€ 0,00</div>
+          <div class="metric-sub" id="metric-dif-brl">R$ 0,00</div>
         </div>
       </div>
       <div id="orcamento-list" class="list-container"></div>
@@ -157,7 +163,7 @@
             <option value="PROJETADO">PROJETADO</option>
           </select>
         </div>
-        <div class="form-group"><label>Moeda do Valor Informado</label>
+        <div class="form-group"><label>Moeda do Valor Digitado</label>
           <select id="orc-moeda" class="form-control">
             <option value="EUR">Euros (€)</option>
             <option value="BRL">Reais (R$)</option>

@@ -78,7 +78,9 @@ header {
   background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px;
   padding: 14px; margin-bottom: 12px; position: relative;
 }
-.card.feito { opacity: 0.5; }
+.card.feito { opacity: 0.55; }
+.card.feito .card-title { text-decoration: line-through; opacity: 0.85; }
+
 .badge-cat { font-size: 0.65rem; font-weight: 800; color: #fff; padding: 3px 8px; border-radius: 6px; }
 .card-time { font-size: 0.8rem; color: var(--text-muted); margin-left: 8px; font-weight: 600; }
 .card-title { font-size: 1rem; font-weight: 700; margin: 6px 0; color: var(--text-main); }
@@ -111,11 +113,11 @@ header {
 .euro-label { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
 .euro-field { width: 80px; padding: 6px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; font-weight: 700; background: var(--bg-main); color: var(--text-main); }
 
-.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.metric-card { background: var(--card-bg); border: 1px solid var(--border-color); padding: 12px; border-radius: 12px; }
-.metric-title { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); }
-.metric-val { font-size: 1.1rem; font-weight: 800; margin: 4px 0; }
-.metric-sub { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+.metrics-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.metric-card { background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px 8px; border-radius: 12px; text-align: center; }
+.metric-title { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.3px; }
+.metric-val { font-size: 0.95rem; font-weight: 800; margin: 4px 0; }
+.metric-sub { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
 
 .list-item { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
 .list-item-sub { color: var(--text-muted); }
