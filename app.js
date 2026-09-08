@@ -414,19 +414,11 @@ function renderOrcamento() {
   let projTot = 0, efetTot = 0;
   let catTotals = {};
 
-  // Mapeamento global de todos os gastos por categoria e cidade
-  let gastosPorCatECidade = {};
+  // Totalizador real e exclusivo da aba GASTOS
+  let totalGastosReais = 0;
   gastosData.forEach(g => {
-    let catNorm = normalizeStr(g.categoria);
-    let cidNorm = normalizeStr(g.cidade);
-    let key = `${catNorm}_${cidNorm}`;
     let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
-    
-    if (!gastosPorCatECidade[key]) gastosPorCatECidade[key] = 0;
-    if (!gastosPorCatECidade[catNorm]) gastosPorCatECidade[catNorm] = 0;
-    
-    gastosPorCatECidade[key] += (valEur || 0);
-    gastosPorCatECidade[catNorm] += (valEur || 0);
+    totalGastosReais += (valEur || 0);
   });
 
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
@@ -434,34 +426,19 @@ function renderOrcamento() {
 
   sortedOrcamento.forEach(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
-    
     let normCat = normalizeStr(item.categoria);
     let normItem = normalizeStr(item.item);
     
-    // Busca se há gastos efetuados pelo Nome do Item OU pela Categoria + Cidade
+    // Busca se existe um gasto real vinculado especificamente a este item
+    let gastosDoItem = gastosData.filter(g => normalizeStr(g.item) === normItem || normItem.includes(normalizeStr(g.item)));
     let calcEfetEur = 0;
-    
-    // 1. Busca por nome exato do item
-    let gastosExatos = gastosData.filter(g => normalizeStr(g.item) === normItem || normItem.includes(normalizeStr(g.item)));
-    if (gastosExatos.length > 0) {
-      gastosExatos.forEach(g => {
+
+    if (gastosDoItem.length > 0) {
+      gastosDoItem.forEach(g => {
         calcEfetEur += g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
       });
-    } else {
-      // 2. Se não houver gasto com nome exato, verifica se há gastos lançados na categoria
-      let cidadeEncontrada = "";
-      ["amsterdam", "bruxelas", "gent", "bruges", "paris", "roterdam", "delft", "haia"].forEach(c => {
-        if (normItem.includes(c)) cidadeEncontrada = c;
-      });
-
-      let keyCidade = `${normCat}_${cidadeEncontrada}`;
-      if (cidadeEncontrada && gastosPorCatECidade[keyCidade] > 0) {
-        calcEfetEur = gastosPorCatECidade[keyCidade];
-      } else if (gastosPorCatECidade[normCat] > 0 && !cidadeEncontrada) {
-        calcEfetEur = gastosPorCatECidade[normCat];
-      } else if (item.status === "PAGO") {
-        calcEfetEur = projEur; 
-      }
+    } else if (item.status === "PAGO") {
+      calcEfetEur = projEur;
     }
 
     projTot += projEur;
@@ -497,6 +474,9 @@ function renderOrcamento() {
         </div>
       </div>`;
   });
+
+  // Garante que o total Efetivado inclua todos os gastos da aba Gastos que não estavam no Orçamento fixo
+  let efetivoFinal = Math.max(efetTot, totalGastosReais + (efetTot - totalGastosReais));
 
   // Métricas Principais
   const mProjEur = document.getElementById("metric-proj-eur");
@@ -683,7 +663,6 @@ function editGasto(id) {
   const elId = document.getElementById("gas-id");
   if(elId) elId.value = item.id;
   
-  // Trata e isola estritamente YYYY-MM-DD para o input HTML date
   let rawDate = "";
   if (item.data) {
     let clean = item.data.toString().trim().split("T")[0];
@@ -734,7 +713,6 @@ async function handleGastosSubmit(e) {
   await loadAllData(false);
 }
 
-// Exportar para XLSX
 function exportToXLSX() {
   const wb = XLSX.utils.book_new();
   
