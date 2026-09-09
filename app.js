@@ -614,7 +614,7 @@ function renderOrcamento() {
     });
 
     listHtml += `
-      <details class="cat-group" open>
+      <details class="cat-group">
         <summary class="cat-group-header">
           <span class="cat-group-name">${cat}</span>
           <span class="cat-group-totals">

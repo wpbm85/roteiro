@@ -331,22 +331,27 @@ header {
   align-items: center;
   padding: 12px 14px;
   cursor: pointer;
+  list-style: none;
+}
+.cat-group-header::-webkit-details-marker { display: none; }
+.cat-group-header::marker { content: ''; }
+.cat-group-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 800;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  list-style: none;
 }
-.cat-group-header::-webkit-details-marker { display: none; }
-.cat-group-header::before {
+.cat-group-name::before {
   content: '▸';
-  margin-right: 8px;
   color: var(--text-muted);
   display: inline-block;
   transition: transform 0.15s;
 }
-.cat-group[open] .cat-group-header::before { transform: rotate(90deg); }
-.cat-group-totals { font-size: 0.8rem; font-weight: 700; text-transform: none; letter-spacing: normal; }
+.cat-group[open] .cat-group-name::before { transform: rotate(90deg); }
+.cat-group-totals { font-size: 0.8rem; font-weight: 700; text-transform: none; letter-spacing: normal; white-space: nowrap; }
 .cat-group-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .city-subheader {
   font-size: 0.7rem;
