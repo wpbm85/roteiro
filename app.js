@@ -367,19 +367,18 @@ function renderTimeline() {
       </div>`;
   });
 
-  new Sortable(container, {
+new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
-    delay: 150,
+    delay: 100,
     delayOnTouchOnly: true,
-    forceFallback: true,
-    fallbackTolerance: 3,
+    touchStartThreshold: 5,
     onEnd: async function () {
       const cards = container.children;
       for (let index = 0; index < cards.length; index++) {
         const id = parseInt(cards[index].getAttribute('data-id'));
         const target = roteiroData.find(r => r.id === id);
-        if(target) {
+        if (target) {
           target.ordem = index + 1;
           await _supabase.from('roteiro').update({ ordem: index + 1 }).eq('id', id);
         }
