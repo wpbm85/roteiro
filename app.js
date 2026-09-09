@@ -23,6 +23,20 @@ const CIDADES_FIXAS = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARI
 const CATEGORIAS_ROTEIRO = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
 const CATEGORIAS_FINANCEIRO = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
 
+// Usado só pra mostrar uma referência informativa (não soma automático no orçamento).
+const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
+  'MUSEU': 'INGRESSOS',
+  'PARQUE': 'INGRESSOS',
+  'DESTAQUE': 'OUTROS',
+  'MARCO': 'OUTROS', // valor legado de categoria, tratado como DESTAQUE
+  'RESTAURANTE': 'ALIMENTAÇÃO',
+  'LOJA': 'COMPRAS',
+  'HOTEL': 'HOTEL',
+  'AEROPORTO': 'TRANSPORTE',
+  'ESTAÇÃO': 'TRANSPORTE',
+  'OUTRO': 'OUTROS'
+};
+
 let currentOrcCityFilter = "TODAS";
 
 function normalizeStr(str) {
@@ -246,6 +260,11 @@ function openContextModal() {
   } else if (currentTab === 'orcamento') {
     document.getElementById("orc-id").value = "";
     document.getElementById("form-orcamento").reset();
+    ["orc-status", "orc-moeda", "orc-proj"].forEach(fieldId => {
+      document.getElementById(fieldId).disabled = false;
+    });
+    const aviso = document.getElementById("orc-linked-aviso");
+    if (aviso) aviso.style.display = "none";
     document.getElementById("modal-orcamento").classList.add("active");
   } else if (currentTab === 'gastos') {
     document.getElementById("gas-id").value = "";
@@ -527,7 +546,7 @@ function renderOrcamento() {
 
   let efetivoOrcamentoPagos = 0;
 
-  const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
+  const orderMap = { "PAGO": 1, "PROJETADO": 2, "A PAGAR": 3 };
 
   let processedOrcamento = orcamentoData.map(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
@@ -591,8 +610,7 @@ function renderOrcamento() {
     porCategoria[item.catName].push(item);
   });
 
-  const nomesCategoria = Object.keys(porCategoria)
-    .sort(ordenarPorListaFixa(CATEGORIAS_FINANCEIRO.map(c => c)));
+  const nomesCategoria = Object.keys(porCategoria).sort((a, b) => a.localeCompare(b));
 
   let listHtml = '';
   nomesCategoria.forEach(cat => {
@@ -611,6 +629,15 @@ function renderOrcamento() {
     nomesCidade.forEach(cid => {
       bodyHtml += `<div class="city-subheader">${cid.charAt(0) + cid.slice(1).toLowerCase()}</div>`;
       porCidade[cid].forEach(item => { bodyHtml += renderOrcamentoItemHtml(item); });
+
+      const ref = getReferenciaRoteiro(cat, cid);
+      if (ref.total > 0) {
+        bodyHtml += `
+          <div class="roteiro-ref-hint">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <span>Já no roteiro (${ref.nomes}): <strong>€ ${ref.total.toFixed(2)}</strong> · ${ref.count} ${ref.count === 1 ? 'item' : 'itens'} · não somado automaticamente</span>
+          </div>`;
+      }
     });
 
     listHtml += `
@@ -648,12 +675,33 @@ function renderOrcamento() {
   renderOrcamentoCityChips();
 }
 
+// Soma os custos já lançados no Roteiro para uma combinação Categoria(financeira)+Cidade.
+// É só uma referência informativa — nunca entra na soma de Projetado/Efetivado.
+function getReferenciaRoteiro(categoriaFinanceira, cidade) {
+  let total = 0;
+  let nomes = [];
+  roteiroData.forEach(r => {
+    const custo = parseFloat(r.custo) || 0;
+    if (custo <= 0) return;
+    const catRoteiro = r.categoria === 'MARCO' ? 'DESTAQUE' : r.categoria;
+    const catMapeada = MAPA_CATEGORIA_ROTEIRO_FINANCEIRO[catRoteiro];
+    if (catMapeada !== categoriaFinanceira) return;
+    const cidadeRoteiro = (r.cidade || '').trim().toUpperCase();
+    if (cidadeRoteiro !== cidade) return;
+    total += custo;
+    nomes.push(r.atracao);
+  });
+  const nomesResumo = nomes.length > 2 ? `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}` : nomes.join(', ');
+  return { total, count: nomes.length, nomes: nomesResumo };
+}
+
 function renderOrcamentoItemHtml(item) {
   let displayValBrl = item.displayValEur * euroMedio;
-  const acoes = item.isLinked
-    ? `<span title="Vinculado a um gasto real — edite ou exclua na aba Gastos" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
-    : `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-       <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
+  const excluirOuCadeado = item.isLinked
+    ? `<span title="Vinculado a um gasto real — exclua o gasto na aba Gastos pra desvincular" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
+    : `<button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
+  const acoes = `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+    ${excluirOuCadeado}`;
   return `
     <div class="list-item">
       <div class="list-item-left">
@@ -718,21 +766,28 @@ function isOrcamentoLinked(id) {
 }
 
 function editOrcamento(id) {
-  if (isOrcamentoLinked(id)) {
-    alert("Este item já tem um gasto real vinculado.\n\nPara mudar o valor ou os dados, edite o gasto correspondente na aba Gastos — o orçamento é atualizado automaticamente a partir dele.");
-    return;
-  }
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
+  const linked = isOrcamentoLinked(id);
+
   document.getElementById("orc-id").value = item.id;
   document.getElementById("orc-cat").value = (item.categoria || '').trim();
   document.getElementById("orc-cidade").value = item.cidade || "GERAL";
   document.getElementById("orc-item").value = (item.item || '').trim();
   document.getElementById("orc-status").value = item.status === "PAGO" ? "A PAGAR" : item.status;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
-  
+
   let valDisplay = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
   document.getElementById("orc-proj").value = parseFloat(valDisplay).toFixed(2);
+
+  // Categoria/Cidade/Item continuam editáveis mesmo com gasto vinculado (são só organização).
+  // Status/Moeda/Valor ficam travados porque, uma vez vinculado, quem manda no valor é o gasto real.
+  ["orc-status", "orc-moeda", "orc-proj"].forEach(fieldId => {
+    document.getElementById(fieldId).disabled = linked;
+  });
+  const aviso = document.getElementById("orc-linked-aviso");
+  if (aviso) aviso.style.display = linked ? "block" : "none";
+
   document.getElementById("modal-orcamento").classList.add("active");
 }
 
@@ -781,7 +836,13 @@ function renderGastos() {
   container.innerHTML = "";
   let catGastos = {};
 
-  gastosData.forEach(item => {
+  const gastosOrdenados = [...gastosData].sort((a, b) => {
+    if (!a.data) return 1;   // sem data vai pro fim
+    if (!b.data) return -1;
+    return new Date(a.data) - new Date(b.data);
+  });
+
+  gastosOrdenados.forEach(item => {
     let eur = item.moeda === "BRL" ? (parseFloat(item.valor_brl) / euroMedio) : parseFloat(item.valor_eur);
     let brl = item.moeda === "EUR" ? (parseFloat(item.valor_eur) * euroMedio) : parseFloat(item.valor_brl);
     

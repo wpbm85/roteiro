@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=7.3">
+  <link rel="stylesheet" href="styles.css?v=7.4">
 </head>
 <body>
 
@@ -160,6 +160,9 @@
       </div>
       <form id="form-orcamento" onsubmit="handleOrcamentoSubmit(event)">
         <input type="hidden" id="orc-id">
+        <div id="orc-linked-aviso" style="display:none; background:rgba(5,150,105,0.12); border:1px solid #059669; border-radius:8px; padding:8px 10px; margin-bottom:14px; font-size:0.78rem; color:#059669;">
+          <i class="fa-solid fa-lock"></i> Este item tem um gasto real vinculado. Categoria/Cidade/Descrição continuam editáveis, mas Status, Moeda e Valor vêm do gasto — edite-os na aba Gastos.
+        </div>
         <div class="form-group"><label>Categoria</label><select id="orc-cat" class="form-control" required></select></div>
         <div class="form-group"><label>Cidade</label><select id="orc-cidade" class="form-control" required></select></div>
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
@@ -213,6 +216,6 @@
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=7.4"></script>
+  <script src="app.js?v=7.5"></script>
 </body>
 </html>
