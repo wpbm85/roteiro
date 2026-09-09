@@ -38,6 +38,7 @@ const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
 };
 
 let currentOrcCityFilter = "TODAS";
+let currentGasCatFilter = "TODAS";
 
 function normalizeStr(str) {
   if (!str) return "";
@@ -546,7 +547,7 @@ function renderOrcamento() {
 
   let efetivoOrcamentoPagos = 0;
 
-  const orderMap = { "PAGO": 1, "PROJETADO": 2, "A PAGAR": 3 };
+  const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
 
   let processedOrcamento = orcamentoData.map(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
@@ -597,6 +598,22 @@ function renderOrcamento() {
   const listaFiltrada = currentOrcCityFilter === "TODAS"
     ? processedOrcamento
     : processedOrcamento.filter(i => i.cidadeName === currentOrcCityFilter);
+
+  const totalCidadeContainer = document.getElementById("orc-city-total");
+  if (totalCidadeContainer) {
+    if (currentOrcCityFilter === "TODAS") {
+      totalCidadeContainer.innerHTML = "";
+    } else {
+      const cidadeProj = listaFiltrada.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
+      const cidadeEfet = listaFiltrada.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
+      const nomeCidade = currentOrcCityFilter.charAt(0) + currentOrcCityFilter.slice(1).toLowerCase();
+      totalCidadeContainer.innerHTML = `
+        <div class="city-total-box">
+          <span>Total em ${nomeCidade}</span>
+          <span><strong style="color:#059669;">€ ${cidadeEfet.toFixed(2)}</strong> <small style="color:var(--text-muted);">/ € ${cidadeProj.toFixed(2)}</small></span>
+        </div>`;
+    }
+  }
 
   const ordenarPorListaFixa = (lista) => (a, b) => {
     const ia = lista.indexOf(a), ib = lista.indexOf(b);
@@ -847,7 +864,19 @@ function renderGastos() {
   container.innerHTML = "";
   let catGastos = {};
 
-  const gastosOrdenados = [...gastosData].sort((a, b) => {
+  // Subtotais por categoria sempre consideram TODOS os gastos, independente do filtro da lista abaixo.
+  gastosData.forEach(g => {
+    let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
+    let catName = (g.categoria || 'SEM CATEGORIA').trim();
+    if(!catGastos[catName]) catGastos[catName] = 0;
+    catGastos[catName] += (valEur || 0);
+  });
+
+  const gastosFiltrados = currentGasCatFilter === "TODAS"
+    ? gastosData
+    : gastosData.filter(g => (g.categoria || '').trim().toUpperCase() === currentGasCatFilter);
+
+  const gastosOrdenados = [...gastosFiltrados].sort((a, b) => {
     if (!a.data) return 1;   // sem data vai pro fim
     if (!b.data) return -1;
     return new Date(a.data) - new Date(b.data);
@@ -856,10 +885,6 @@ function renderGastos() {
   gastosOrdenados.forEach(item => {
     let eur = item.moeda === "BRL" ? (parseFloat(item.valor_brl) / euroMedio) : parseFloat(item.valor_eur);
     let brl = item.moeda === "EUR" ? (parseFloat(item.valor_eur) * euroMedio) : parseFloat(item.valor_brl);
-    
-    let catName = (item.categoria || 'SEM CATEGORIA').trim();
-    if(!catGastos[catName]) catGastos[catName] = 0;
-    catGastos[catName] += eur;
 
     let dateDisplay = formatGastoDateLabel(item.data);
     const vinculoTag = item.orcamento_id
@@ -900,6 +925,29 @@ function renderGastos() {
     html += `</div></div>`;
     subContainer.innerHTML = html;
   }
+
+  renderGastosCatChips();
+}
+
+function renderGastosCatChips() {
+  const bar = document.getElementById("gas-cat-bar");
+  if (!bar) return;
+  const categoriasPresentes = [...new Set(gastosData.map(g => (g.categoria || '').trim().toUpperCase()).filter(Boolean))];
+  categoriasPresentes.sort((a, b) => {
+    const ia = CATEGORIAS_FINANCEIRO.indexOf(a), ib = CATEGORIAS_FINANCEIRO.indexOf(b);
+    const pa = ia === -1 ? 999 : ia, pb = ib === -1 ? 999 : ib;
+    if (pa !== pb) return pa - pb;
+    return a.localeCompare(b);
+  });
+  bar.innerHTML = `<button class="chip ${currentGasCatFilter === 'TODAS' ? 'active' : ''}" onclick="filterGastosCat('TODAS')">Todas</button>`;
+  categoriasPresentes.forEach(c => {
+    bar.innerHTML += `<button class="chip ${c === currentGasCatFilter ? 'active' : ''}" onclick="filterGastosCat('${c}')">${c.charAt(0) + c.slice(1).toLowerCase()}</button>`;
+  });
+}
+
+function filterGastosCat(cat) {
+  currentGasCatFilter = cat;
+  renderGastos();
 }
 
 function editGasto(id) {
@@ -981,4 +1029,5 @@ window.setDoneFilter = setDoneFilter;
 window.exportToXLSX = exportToXLSX;
 window.formatTimeMask = formatTimeMask;
 window.filterOrcamentoCity = filterOrcamentoCity;
+window.filterGastosCat = filterGastosCat;
 window.refreshVinculoOptions = refreshVinculoOptions;

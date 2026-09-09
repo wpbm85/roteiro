@@ -367,6 +367,19 @@ header {
 }
 .roteiro-ref-hint strong { color: var(--text-main); }
 
+.city-total-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .bottom-nav {
   position: fixed;
   bottom: 0;
