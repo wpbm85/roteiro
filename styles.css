@@ -146,7 +146,15 @@ header {
   position: relative;
   overflow: hidden;
 }
-.card.feito { opacity: 0.5; }
+.card.feito { opacity: 0.55; }
+.card.feito .card-title,
+.card.feito .card-address,
+.card.feito .card-obs,
+.card.feito .card-time-text,
+.card.feito .card-cost {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
 
 .card-agenda-layout {
   display: flex;
