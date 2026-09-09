@@ -51,6 +51,19 @@ header {
 
 .header-actions { display: flex; gap: 8px; }
 
+.icon-btn {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 .container { max-width: 760px; margin: auto; padding: 16px; }
 
 .tab-content { display: none; }
@@ -155,7 +168,7 @@ header {
   top: 2px;
   bottom: -2px;
   width: 4px;
-  background-color: var(--accent-red);
+  background-color: var(--accent-blue);
   border-radius: 4px;
 }
 .card-time-text {
@@ -169,7 +182,7 @@ header {
 
 .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .badge-cat { font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; color: #fff; text-transform: uppercase; }
-.card-cost { font-size: 0.9rem; font-weight: 800; color: var(--accent-green); }
+.card-cost { font-size: 0.9rem; font-weight: 800; }
 .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
 .card-address, .card-obs { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
 
@@ -249,7 +262,6 @@ header {
 .sec-subtotals-box {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-top: 6px solid var(--accent-blue);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 16px;
@@ -264,12 +276,12 @@ header {
   background: var(--bg-main);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
 }
 .subtile span { font-size: 0.75rem; font-weight: 800; color: var(--text-muted); }
-.subtile strong { font-size: 1rem; font-weight: 800; margin-top: 4px; }
+.subtile strong { font-size: 0.95rem; font-weight: 800; margin-top: 2px; }
 .subtile small { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; }
 
 .list-container { display: flex; flex-direction: column; gap: 8px; }
@@ -277,17 +289,16 @@ header {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 14px;
-  padding: 14px;
+  padding: 12px 14px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 .list-item-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
 
 .framed-section {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-top: 6px solid var(--border-color);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 16px;

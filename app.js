@@ -8,6 +8,7 @@ let currentTab = 'roteiro';
 let currentFilter = "TODAS";
 let currentSelectedDay = null; 
 let showDone = "ALL";
+let isInitialized = false;
 
 let roteiroData = [];
 let orcamentoData = [];
@@ -22,21 +23,35 @@ function normalizeStr(str) {
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function formatTimeMask(input) {
+  let v = input.value.replace(/\D/g, '');
+  if (v.length >= 3) {
+    input.value = v.slice(0, 2) + ':' + v.slice(2, 4);
+  } else {
+    input.value = v;
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   _supabase.auth.onAuthStateChange(async (event, currentSession) => {
     if (currentSession) {
       session = currentSession;
-      startApp();
+      if (!isInitialized) {
+        isInitialized = true;
+        startApp();
+      }
     } else {
       session = null;
+      isInitialized = false;
       const loginModal = document.getElementById("modal-login");
       if (loginModal) loginModal.classList.add("active");
     }
   });
 
   const { data } = await _supabase.auth.getSession();
-  if (data.session) {
+  if (data.session && !isInitialized) {
     session = data.session;
+    isInitialized = true;
     startApp();
   }
 });
@@ -56,6 +71,7 @@ async function handleLogin(e) {
     }
   } else {
     session = data.session;
+    isInitialized = true;
     startApp();
   }
 }
@@ -139,7 +155,7 @@ function populateSelects() {
   }
 
   const cidadesFixas = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARIS", "ROTERDAM", "DELFT", "HAIA"];
-  const categoriasRoteiro = ["DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
+  const categoriasRoteiro = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
   const categoriasFinanceiro = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
 
   const rotCity = document.getElementById("rot-cidade");
@@ -291,14 +307,14 @@ function renderTimeline() {
 
   filtered.forEach(item => {
     let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
-
     let funcVal = item.funcionamento || item.horario || "";
 
-    if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
+    if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
+      let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
       container.innerHTML += `
         <div class="train-strip" data-id="${item.id}">
           <div class="train-info">
-            <span class="train-title"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
+            <span class="train-title"><i class="fa-solid ${iconClass}"></i> ${item.atracao}</span>
             <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
@@ -330,7 +346,7 @@ function renderTimeline() {
           <div class="card-body-col">
             <div class="card-top">
               <span class="badge-cat" style="background: ${catBg}">${catDisplay}</span>
-              <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
+              <span class="card-cost" style="color: ${catBg};">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
             </div>
             <div class="card-title">${item.atracao}</div>
             ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
@@ -354,9 +370,10 @@ function renderTimeline() {
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
-    delay: 50,
+    delay: 150,
     delayOnTouchOnly: true,
-    touchStartThreshold: 2,
+    forceFallback: true,
+    fallbackTolerance: 3,
     onEnd: async function () {
       const cards = container.children;
       for (let index = 0; index < cards.length; index++) {
@@ -475,17 +492,17 @@ function renderOrcamento() {
   processedOrcamento.forEach(item => {
     let displayValBrl = item.displayValEur * euroMedio;
     container.innerHTML += `
-      <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item">
         <div class="list-item-left">
           <div style="font-weight:700;">${item.item}</div>
-          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
+          <div class="list-item-sub">${item.categoria} • <span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
         </div>
         <div class="list-item-right" style="text-align:right;">
           <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>
-          <div class="list-item-sub" style="font-size:0.75rem;">R$ ${displayValBrl.toFixed(2)}</div>
+          <div class="list-item-sub">R$ ${displayValBrl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
-            <button class="btn-act" onclick="editOrcamento(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       </div>`;
@@ -514,7 +531,7 @@ function renderSubtotaisOrcamento(catTotals) {
   if (!subContainer) return;
 
   let html = `
-    <div class="sec-subtotals-box" style="border-top-color: var(--accent-orange);">
+    <div class="sec-subtotals-box">
       <div class="sec-subtotals-title">RESUMO POR CATEGORIA</div>
       <div class="subgrid">`;
 
@@ -597,17 +614,17 @@ function renderGastos() {
     let dateDisplay = formatGastoDateLabel(item.data);
 
     container.innerHTML += `
-      <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="list-item">
         <div class="list-item-left">
           <span class="list-item-title" style="font-weight:700;">${item.item}</span>
-          <div class="list-item-sub" style="font-size:0.8rem;">${dateDisplay} • ${item.categoria} (${item.cidade || ''})</div>
+          <div class="list-item-sub">${dateDisplay} • ${item.categoria} (${item.cidade || ''})</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
           <div class="list-item-val" style="font-weight:800;">€ ${eur.toFixed(2)}</div>
-          <div class="list-item-brl" style="font-size:0.75rem;">R$ ${brl.toFixed(2)}</div>
+          <div class="list-item-brl" style="font-size:0.75rem; color:var(--text-muted);">R$ ${brl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
-            <button class="btn-act" onclick="editGasto(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'gastos')" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-act" onclick="editGasto(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'gastos')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       </div>`;
@@ -615,7 +632,7 @@ function renderGastos() {
 
   if (subContainer) {
     let html = `
-      <div class="sec-subtotals-box" style="border-top-color: var(--accent-green);">
+      <div class="sec-subtotals-box">
         <div class="sec-subtotals-title">GASTOS POR CATEGORIA</div>
         <div class="subgrid">`;
     for (const [cat, valEur] of Object.entries(catGastos)) {
@@ -702,3 +719,4 @@ window.updateEuro = updateEuro;
 window.filterCity = filterCity;
 window.setDoneFilter = setDoneFilter;
 window.exportToXLSX = exportToXLSX;
+window.formatTimeMask = formatTimeMask;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1e293b">
+  <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Europa 2027</title>
@@ -21,14 +21,14 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=6.0">
+  <link rel="stylesheet" href="styles.css?v=7.0">
 </head>
 <body>
 
   <div class="modal active" id="modal-login" style="z-index: 999;">
     <div class="modal-content" style="margin:auto; border-radius: 20px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: #ffffff;"></i>
+        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: #2563eb;"></i>
         <h2 style="margin-top: 10px; color: #ffffff;">Europa 2027</h2>
         <p style="font-size: 0.85rem; color: #cbd5e1;">Acesso Restrito</p>
       </div>
@@ -53,7 +53,7 @@
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i></button>
-      <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+      <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket" style="color: #f8fafc;"></i></button>
     </div>
   </header>
 
@@ -96,7 +96,7 @@
       
       <div id="orcamento-subtotais-container"></div>
 
-      <div class="framed-section" style="border-top-color: var(--accent-blue);">
+      <div class="framed-section">
         <div class="framed-title">ITENS DE ORÇAMENTO</div>
         <div id="orcamento-list" class="list-container"></div>
       </div>
@@ -105,7 +105,7 @@
     <section id="tab-gastos" class="tab-content">
       <div id="gastos-subtotais-container"></div>
       
-      <div class="framed-section" style="border-top-color: var(--accent-green);">
+      <div class="framed-section">
         <div class="framed-title">LANÇAMENTO DE GASTOS REAIS</div>
         <div id="gastos-list" class="list-container"></div>
       </div>
@@ -126,6 +126,7 @@
         <div class="form-group"><label>Cidade</label><select id="rot-cidade" class="form-control" required></select></div>
         <div class="form-group"><label>Categoria</label>
           <select id="rot-categoria" class="form-control">
+            <option value="AEROPORTO">AEROPORTO</option>
             <option value="DESTAQUE">DESTAQUE</option>
             <option value="ESTAÇÃO">ESTAÇÃO</option>
             <option value="HOTEL">HOTEL</option>
@@ -137,7 +138,7 @@
           </select>
         </div>
         <div class="form-group"><label>Atração</label><input type="text" id="rot-atracao" class="form-control" required></div>
-        <div class="form-group"><label>Hora da Atividade (Ex: 09:30)</label><input type="text" id="rot-hora" class="form-control" placeholder="09:30"></div>
+        <div class="form-group"><label>Hora da Atividade (Ex: 09:30)</label><input type="text" id="rot-hora" class="form-control" placeholder="00:00" maxlength="5" oninput="formatTimeMask(this)"></div>
         <div class="form-group"><label>Funcionamento (Ex: 9-18h)</label><input type="text" id="rot-funcionamento" class="form-control" placeholder="9-18h"></div>
         <div class="form-group"><label>Região</label><input type="text" id="rot-regiao" class="form-control"></div>
         <div class="form-group"><label>Endereço</label><input type="text" id="rot-endereco" class="form-control"></div>
@@ -208,6 +209,6 @@
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=6.0"></script>
+  <script src="app.js?v=7.0"></script>
 </body>
 </html>
