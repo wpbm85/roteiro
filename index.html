@@ -162,10 +162,10 @@
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
         <div class="form-group"><label>Status</label>
           <select id="orc-status" class="form-control">
-            <option value="PAGO">PAGO</option>
             <option value="A PAGAR">A PAGAR</option>
             <option value="PROJETADO">PROJETADO</option>
           </select>
+          <small style="color:var(--text-muted); font-size:0.75rem;">"PAGO" agora é automático: aparece quando você vincula um gasto real a este item, lá na aba Gastos.</small>
         </div>
         <div class="form-group"><label>Moeda</label>
           <select id="orc-moeda" class="form-control">
@@ -191,6 +191,7 @@
         <div class="form-group"><label>Cidade</label><select id="gas-cidade" class="form-control" required></select></div>
         <div class="form-group"><label>Categoria</label><select id="gas-cat" class="form-control" required></select></div>
         <div class="form-group"><label>Descrição do Item</label><input type="text" id="gas-item" class="form-control" required></div>
+        <div class="form-group"><label>Vincular a item do orçamento (opcional)</label><select id="gas-orcamento" class="form-control"></select></div>
         <div class="form-group"><label>Moeda</label>
           <select id="gas-moeda" class="form-control">
             <option value="EUR">Euros (€)</option>
@@ -209,6 +210,6 @@
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=7.1"></script>
+  <script src="app.js?v=7.2"></script>
 </body>
 </html>

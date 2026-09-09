@@ -189,6 +189,17 @@ function populateSelects() {
   const orcCat = document.getElementById("orc-cat");
   if(gasCat) gasCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
   if(orcCat) orcCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  const gasOrc = document.getElementById("gas-orcamento");
+  if(gasOrc) {
+    let opts = `<option value="">Nenhum (gasto avulso)</option>`;
+    orcamentoData.forEach(o => {
+      const cat = (o.categoria || '').trim();
+      const desc = (o.item || '').trim();
+      opts += `<option value="${o.id}">${cat} • ${desc}</option>`;
+    });
+    gasOrc.innerHTML = opts;
+  }
 }
 
 function switchTab(tabName, btn) {
@@ -287,6 +298,10 @@ async function toggleDone(id) {
 }
 
 async function deleteItem(id, type) {
+  if (type === 'orcamento' && isOrcamentoLinked(id)) {
+    alert("Este item já tem um gasto real vinculado.\n\nExclua o gasto correspondente na aba Gastos primeiro — isso desvincula automaticamente e o item de orçamento volta a ficar editável.");
+    return;
+  }
   if(!confirm("Tem certeza que deseja excluir?")) return;
   const { error } = await _supabase.from(type).delete().eq('id', id);
   if (checkError(error, 'excluir este item')) return;
@@ -484,36 +499,37 @@ function renderOrcamento() {
 
   let efetivoOrcamentoPagos = 0;
 
-  const orderMap = { "GASTO REAL": 1, "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
+  const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
 
   let processedOrcamento = orcamentoData.map(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
     projTot += projEur;
 
     let catName = (item.categoria || 'SEM CATEGORIA').trim();
-    let normCat = normalizeStr(catName);
-    let normItem = normalizeStr(item.item);
 
     if (!catTotals[catName]) catTotals[catName] = { proj: 0, efet: 0 };
     catTotals[catName].proj += projEur;
 
-    let gastoVinculado = gastosData.find(g => {
-      let gItemNorm = normalizeStr(g.item);
-      let gCatNorm = normalizeStr(g.categoria);
-      return gItemNorm === normItem || normItem.includes(gItemNorm) || (gCatNorm === normCat && normItem.includes(normalizeStr(g.cidade)));
-    });
+    // Vínculo real (FK), não mais por comparação de texto.
+    // Pode haver mais de um gasto vinculado ao mesmo item (ex.: hotel pago em 2 parcelas).
+    let gastosVinculados = gastosData.filter(g => g.orcamento_id === item.id);
+    let isLinked = gastosVinculados.length > 0;
 
     let displayValEur = projEur;
     let statusText = item.status;
     let statusColor = "var(--text-main)";
 
-    if (gastoVinculado) {
-      let valGastoEur = gastoVinculado.moeda === "BRL" ? (parseFloat(gastoVinculado.valor_brl) / euroMedio) : parseFloat(gastoVinculado.valor_eur);
-      displayValEur = valGastoEur;
-      statusText = "GASTO REAL";
+    if (isLinked) {
+      let somaVinculada = gastosVinculados.reduce((acc, g) => {
+        let v = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
+        return acc + (v || 0);
+      }, 0);
+      displayValEur = somaVinculada;
+      statusText = "PAGO";
       statusColor = "#059669";
-      catTotals[catName].efet += valGastoEur;
+      catTotals[catName].efet += somaVinculada;
     } else if (item.status === "PAGO") {
+      // Legado: status "PAGO" definido manualmente antes desta mudança, sem gasto real vinculado ainda.
       statusColor = "#059669";
       efetivoOrcamentoPagos += projEur;
       catTotals[catName].efet += projEur;
@@ -523,13 +539,17 @@ function renderOrcamento() {
       statusColor = "#ea580c";
     }
 
-    return { ...item, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, gastoVinculado };
+    return { ...item, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked };
   });
 
   processedOrcamento.sort((a, b) => a.sortWeight - b.sortWeight);
 
   processedOrcamento.forEach(item => {
     let displayValBrl = item.displayValEur * euroMedio;
+    const acoes = item.isLinked
+      ? `<span title="Vinculado a um gasto real — edite ou exclua na aba Gastos" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
+      : `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+         <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
     container.innerHTML += `
       <div class="list-item">
         <div class="list-item-left">
@@ -539,9 +559,8 @@ function renderOrcamento() {
         <div class="list-item-right" style="text-align:right;">
           <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>
           <div class="list-item-sub">R$ ${displayValBrl.toFixed(2)}</div>
-          <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
-            <button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>
+          <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end; align-items:center;">
+            ${acoes}
           </div>
         </div>
       </div>`;
@@ -587,13 +606,21 @@ function renderSubtotaisOrcamento(catTotals) {
   subContainer.innerHTML = html;
 }
 
+function isOrcamentoLinked(id) {
+  return gastosData.some(g => g.orcamento_id === id);
+}
+
 function editOrcamento(id) {
+  if (isOrcamentoLinked(id)) {
+    alert("Este item já tem um gasto real vinculado.\n\nPara mudar o valor ou os dados, edite o gasto correspondente na aba Gastos — o orçamento é atualizado automaticamente a partir dele.");
+    return;
+  }
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
   document.getElementById("orc-id").value = item.id;
   document.getElementById("orc-cat").value = (item.categoria || '').trim();
   document.getElementById("orc-item").value = (item.item || '').trim();
-  document.getElementById("orc-status").value = item.status;
+  document.getElementById("orc-status").value = item.status === "PAGO" ? "A PAGAR" : item.status;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
   
   let valDisplay = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
@@ -654,11 +681,14 @@ function renderGastos() {
     catGastos[catName] += eur;
 
     let dateDisplay = formatGastoDateLabel(item.data);
+    const vinculoTag = item.orcamento_id
+      ? `<i class="fa-solid fa-link" title="Vinculado a um item do orçamento" style="color:#059669; margin-left:4px;"></i>`
+      : '';
 
     container.innerHTML += `
       <div class="list-item">
         <div class="list-item-left">
-          <span class="list-item-title" style="font-weight:700;">${item.item}</span>
+          <span class="list-item-title" style="font-weight:700;">${item.item}${vinculoTag}</span>
           <div class="list-item-sub">${dateDisplay} • ${item.categoria} (${item.cidade || ''})</div>
         </div>
         <div class="list-item-right" style="text-align:right;">
@@ -706,6 +736,7 @@ function editGasto(id) {
   document.getElementById("gas-cat").value = (item.categoria || '').trim();
   document.getElementById("gas-item").value = (item.item || '').trim();
   document.getElementById("gas-moeda").value = item.moeda || "EUR";
+  document.getElementById("gas-orcamento").value = item.orcamento_id || "";
   
   let valGasto = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
   document.getElementById("gas-valor").value = parseFloat(valGasto).toFixed(2);
@@ -717,6 +748,7 @@ async function handleGastosSubmit(e) {
   const idStr = document.getElementById("gas-id").value;
   const moeda = document.getElementById("gas-moeda").value;
   const valor = parseFloat(document.getElementById("gas-valor").value) || 0;
+  const orcVinculoStr = document.getElementById("gas-orcamento").value;
   
   const payload = {
     data: document.getElementById("gas-data").value, 
@@ -725,7 +757,8 @@ async function handleGastosSubmit(e) {
     item: document.getElementById("gas-item").value.trim(),
     moeda: moeda, 
     valor_eur: moeda === "EUR" ? valor : (valor / euroMedio), 
-    valor_brl: moeda === "BRL" ? valor : (valor * euroMedio)
+    valor_brl: moeda === "BRL" ? valor : (valor * euroMedio),
+    orcamento_id: orcVinculoStr ? parseInt(orcVinculoStr) : null
   };
 
   let error;
