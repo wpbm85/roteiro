@@ -19,6 +19,12 @@ const DIAS_TRADUCAO = {
   'MON': 'SEG', 'TUE': 'TER', 'WED': 'QUA', 'THU': 'QUI', 'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
 };
 
+const CIDADES_FIXAS = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARIS", "ROTERDAM", "DELFT", "HAIA"];
+const CATEGORIAS_ROTEIRO = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
+const CATEGORIAS_FINANCEIRO = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
+
+let currentOrcCityFilter = "TODAS";
+
 function normalizeStr(str) {
   if (!str) return "";
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -173,32 +179,54 @@ function populateSelects() {
     }).join("");
   }
 
-  const cidadesFixas = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARIS", "ROTERDAM", "DELFT", "HAIA"];
-  const categoriasRoteiro = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
-  const categoriasFinanceiro = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
-
   const rotCity = document.getElementById("rot-cidade");
   const gasCity = document.getElementById("gas-cidade");
-  if(rotCity) rotCity.innerHTML = cidadesFixas.map(c => `<option value="${c}">${c}</option>`).join("");
-  if(gasCity) gasCity.innerHTML = cidadesFixas.map(c => `<option value="${c}">${c}</option>`).join("");
+  const orcCity = document.getElementById("orc-cidade");
+  if(rotCity) rotCity.innerHTML = CIDADES_FIXAS.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(gasCity) gasCity.innerHTML = CIDADES_FIXAS.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(orcCity) orcCity.innerHTML = CIDADES_FIXAS.map(c => `<option value="${c}">${c}</option>`).join("");
 
   const rotCat = document.getElementById("rot-categoria");
-  if(rotCat) rotCat.innerHTML = categoriasRoteiro.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(rotCat) rotCat.innerHTML = CATEGORIAS_ROTEIRO.map(c => `<option value="${c}">${c}</option>`).join("");
 
   const gasCat = document.getElementById("gas-cat");
   const orcCat = document.getElementById("orc-cat");
-  if(gasCat) gasCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
-  if(orcCat) orcCat.innerHTML = categoriasFinanceiro.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(gasCat) gasCat.innerHTML = CATEGORIAS_FINANCEIRO.map(c => `<option value="${c}">${c}</option>`).join("");
+  if(orcCat) orcCat.innerHTML = CATEGORIAS_FINANCEIRO.map(c => `<option value="${c}">${c}</option>`).join("");
 
+  refreshVinculoOptions();
+}
+
+// Filtra o dropdown "Vincular a item do orçamento" pela Categoria e Cidade
+// já escolhidas no próprio formulário de gasto — assim a lista nunca mostra
+// os 40+ itens de uma vez, só os candidatos que fazem sentido.
+function refreshVinculoOptions() {
   const gasOrc = document.getElementById("gas-orcamento");
-  if(gasOrc) {
-    let opts = `<option value="">Nenhum (gasto avulso)</option>`;
-    orcamentoData.forEach(o => {
-      const cat = (o.categoria || '').trim();
-      const desc = (o.item || '').trim();
-      opts += `<option value="${o.id}">${cat} • ${desc}</option>`;
-    });
-    gasOrc.innerHTML = opts;
+  const gasCat = document.getElementById("gas-cat");
+  const gasCidade = document.getElementById("gas-cidade");
+  if (!gasOrc || !gasCat || !gasCidade) return;
+
+  const valorAnterior = gasOrc.value;
+  const catAtual = normalizeStr(gasCat.value);
+  const cidadeAtual = normalizeStr(gasCidade.value);
+
+  const candidatos = orcamentoData.filter(o => {
+    const catMatch = normalizeStr(o.categoria) === catAtual;
+    const cidadeOrc = normalizeStr(o.cidade);
+    const cidMatch = !cidadeOrc || cidadeOrc === cidadeAtual || cidadeOrc === 'geral';
+    return catMatch && cidMatch;
+  });
+
+  let opts = `<option value="">Nenhum (gasto avulso)</option>`;
+  candidatos.forEach(o => {
+    const desc = (o.item || '').trim();
+    opts += `<option value="${o.id}">${desc}${o.cidade ? ' (' + o.cidade + ')' : ''}</option>`;
+  });
+  gasOrc.innerHTML = opts;
+
+  // Mantém a seleção anterior se ela ainda estiver entre os candidatos filtrados.
+  if ([...gasOrc.options].some(op => op.value === valorAnterior)) {
+    gasOrc.value = valorAnterior;
   }
 }
 
@@ -223,6 +251,7 @@ function openContextModal() {
     document.getElementById("gas-id").value = "";
     document.getElementById("form-gastos").reset();
     document.getElementById("gas-data").value = new Date().toISOString().split('T')[0];
+    refreshVinculoOptions();
     document.getElementById("modal-gastos").classList.add("active");
   }
 }
@@ -482,7 +511,6 @@ function updateEuro() {
 function renderOrcamento() {
   const container = document.getElementById("orcamento-list");
   if(!container) return;
-  container.innerHTML = "";
   let projTot = 0;
   let catTotals = {};
 
@@ -506,6 +534,7 @@ function renderOrcamento() {
     projTot += projEur;
 
     let catName = (item.categoria || 'SEM CATEGORIA').trim();
+    let cidadeName = (item.cidade || 'GERAL').trim().toUpperCase();
 
     if (!catTotals[catName]) catTotals[catName] = { proj: 0, efet: 0 };
     catTotals[catName].proj += projEur;
@@ -539,33 +568,67 @@ function renderOrcamento() {
       statusColor = "#ea580c";
     }
 
-    return { ...item, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked };
+    return { ...item, catName, cidadeName, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked };
   });
 
   processedOrcamento.sort((a, b) => a.sortWeight - b.sortWeight);
 
-  processedOrcamento.forEach(item => {
-    let displayValBrl = item.displayValEur * euroMedio;
-    const acoes = item.isLinked
-      ? `<span title="Vinculado a um gasto real — edite ou exclua na aba Gastos" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
-      : `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-         <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
-    container.innerHTML += `
-      <div class="list-item">
-        <div class="list-item-left">
-          <div style="font-weight:700;">${item.item}</div>
-          <div class="list-item-sub">${item.categoria} • <span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
-        </div>
-        <div class="list-item-right" style="text-align:right;">
-          <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>
-          <div class="list-item-sub">R$ ${displayValBrl.toFixed(2)}</div>
-          <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end; align-items:center;">
-            ${acoes}
-          </div>
-        </div>
-      </div>`;
+  // ---- Lista visual: filtrada por cidade (chips) e agrupada por Categoria > Cidade ----
+  const listaFiltrada = currentOrcCityFilter === "TODAS"
+    ? processedOrcamento
+    : processedOrcamento.filter(i => i.cidadeName === currentOrcCityFilter);
+
+  const ordenarPorListaFixa = (lista) => (a, b) => {
+    const ia = lista.indexOf(a), ib = lista.indexOf(b);
+    const pa = ia === -1 ? 999 : ia, pb = ib === -1 ? 999 : ib;
+    if (pa !== pb) return pa - pb;
+    return a.localeCompare(b);
+  };
+
+  let porCategoria = {};
+  listaFiltrada.forEach(item => {
+    if (!porCategoria[item.catName]) porCategoria[item.catName] = [];
+    porCategoria[item.catName].push(item);
   });
 
+  const nomesCategoria = Object.keys(porCategoria)
+    .sort(ordenarPorListaFixa(CATEGORIAS_FINANCEIRO.map(c => c)));
+
+  let listHtml = '';
+  nomesCategoria.forEach(cat => {
+    const itensCategoria = porCategoria[cat];
+    const subProj = itensCategoria.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
+    const subEfet = itensCategoria.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
+
+    let porCidade = {};
+    itensCategoria.forEach(item => {
+      if (!porCidade[item.cidadeName]) porCidade[item.cidadeName] = [];
+      porCidade[item.cidadeName].push(item);
+    });
+    const nomesCidade = Object.keys(porCidade).sort(ordenarPorListaFixa(CIDADES_FIXAS));
+
+    let bodyHtml = '';
+    nomesCidade.forEach(cid => {
+      bodyHtml += `<div class="city-subheader">${cid.charAt(0) + cid.slice(1).toLowerCase()}</div>`;
+      porCidade[cid].forEach(item => { bodyHtml += renderOrcamentoItemHtml(item); });
+    });
+
+    listHtml += `
+      <details class="cat-group" open>
+        <summary class="cat-group-header">
+          <span class="cat-group-name">${cat}</span>
+          <span class="cat-group-totals">
+            <strong style="color:#059669;">€ ${subEfet.toFixed(2)}</strong>
+            <small style="color:var(--text-muted);"> / € ${subProj.toFixed(2)}</small>
+          </span>
+        </summary>
+        <div class="cat-group-body">${bodyHtml}</div>
+      </details>`;
+  });
+
+  container.innerHTML = listHtml || `<div style="text-align:center; color:var(--text-muted); padding:24px 0;">Nenhum item de orçamento para esta cidade.</div>`;
+
+  // ---- Métricas e resumo por categoria: sempre considerando TODOS os itens (não filtrados) ----
   for (const [catName, val] of Object.entries(catTotals)) {
     let catNorm = normalizeStr(catName);
     if (val.efet === 0 && gastosPorCat[catNorm]) val.efet = gastosPorCat[catNorm];
@@ -582,6 +645,50 @@ function renderOrcamento() {
   document.getElementById("metric-dif-brl").innerText  = `R$ ${(aPagarEur * euroMedio).toFixed(2)}`;
 
   renderSubtotaisOrcamento(catTotals);
+  renderOrcamentoCityChips();
+}
+
+function renderOrcamentoItemHtml(item) {
+  let displayValBrl = item.displayValEur * euroMedio;
+  const acoes = item.isLinked
+    ? `<span title="Vinculado a um gasto real — edite ou exclua na aba Gastos" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
+    : `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+       <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
+  return `
+    <div class="list-item">
+      <div class="list-item-left">
+        <div style="font-weight:700;">${item.item}</div>
+        <div class="list-item-sub"><span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
+      </div>
+      <div class="list-item-right" style="text-align:right;">
+        <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>
+        <div class="list-item-sub">R$ ${displayValBrl.toFixed(2)}</div>
+        <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end; align-items:center;">
+          ${acoes}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderOrcamentoCityChips() {
+  const bar = document.getElementById("orc-city-bar");
+  if (!bar) return;
+  const cidadesPresentes = [...new Set(orcamentoData.map(o => (o.cidade || 'GERAL').trim().toUpperCase()).filter(Boolean))];
+  cidadesPresentes.sort((a, b) => {
+    const ia = CIDADES_FIXAS.indexOf(a), ib = CIDADES_FIXAS.indexOf(b);
+    const pa = ia === -1 ? 999 : ia, pb = ib === -1 ? 999 : ib;
+    if (pa !== pb) return pa - pb;
+    return a.localeCompare(b);
+  });
+  bar.innerHTML = `<button class="chip ${currentOrcCityFilter === 'TODAS' ? 'active' : ''}" onclick="filterOrcamentoCity('TODAS')">Todas</button>`;
+  cidadesPresentes.forEach(c => {
+    bar.innerHTML += `<button class="chip ${c === currentOrcCityFilter ? 'active' : ''}" onclick="filterOrcamentoCity('${c}')">${c.charAt(0) + c.slice(1).toLowerCase()}</button>`;
+  });
+}
+
+function filterOrcamentoCity(city) {
+  currentOrcCityFilter = city;
+  renderOrcamento();
 }
 
 function renderSubtotaisOrcamento(catTotals) {
@@ -619,6 +726,7 @@ function editOrcamento(id) {
   if(!item) return;
   document.getElementById("orc-id").value = item.id;
   document.getElementById("orc-cat").value = (item.categoria || '').trim();
+  document.getElementById("orc-cidade").value = item.cidade || "GERAL";
   document.getElementById("orc-item").value = (item.item || '').trim();
   document.getElementById("orc-status").value = item.status === "PAGO" ? "A PAGAR" : item.status;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
@@ -637,6 +745,7 @@ async function handleOrcamentoSubmit(e) {
 
   const payload = {
     categoria: document.getElementById("orc-cat").value.trim(), 
+    cidade: document.getElementById("orc-cidade").value,
     item: document.getElementById("orc-item").value.trim(),
     status: document.getElementById("orc-status").value, 
     moeda: moeda,
@@ -736,6 +845,7 @@ function editGasto(id) {
   document.getElementById("gas-cat").value = (item.categoria || '').trim();
   document.getElementById("gas-item").value = (item.item || '').trim();
   document.getElementById("gas-moeda").value = item.moeda || "EUR";
+  refreshVinculoOptions();
   document.getElementById("gas-orcamento").value = item.orcamento_id || "";
   
   let valGasto = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
@@ -798,3 +908,5 @@ window.filterCity = filterCity;
 window.setDoneFilter = setDoneFilter;
 window.exportToXLSX = exportToXLSX;
 window.formatTimeMask = formatTimeMask;
+window.filterOrcamentoCity = filterOrcamentoCity;
+window.refreshVinculoOptions = refreshVinculoOptions;

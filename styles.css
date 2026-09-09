@@ -319,6 +319,44 @@ header {
   text-transform: uppercase;
 }
 
+.cat-group {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cat-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  list-style: none;
+}
+.cat-group-header::-webkit-details-marker { display: none; }
+.cat-group-header::before {
+  content: '▸';
+  margin-right: 8px;
+  color: var(--text-muted);
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.cat-group[open] .cat-group-header::before { transform: rotate(90deg); }
+.cat-group-totals { font-size: 0.8rem; font-weight: 700; text-transform: none; letter-spacing: normal; }
+.cat-group-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.city-subheader {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 6px 2px 0;
+}
+
 .bottom-nav {
   position: fixed;
   bottom: 0;
