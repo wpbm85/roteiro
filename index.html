@@ -21,16 +21,16 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=3.0">
+  <link rel="stylesheet" href="styles.css?v=6.0">
 </head>
 <body>
 
   <div class="modal active" id="modal-login" style="z-index: 999;">
-    <div class="modal-content" style="margin:auto; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <div class="modal-content" style="margin:auto; border-radius: 20px;">
       <div style="text-align: center; margin-bottom: 20px;">
         <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: #ffffff;"></i>
         <h2 style="margin-top: 10px; color: #ffffff;">Europa 2027</h2>
-        <p style="font-size: 0.85rem; opacity:0.8; color: #cbd5e1;">Acesso Restrito</p>
+        <p style="font-size: 0.85rem; color: #cbd5e1;">Acesso Restrito</p>
       </div>
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
@@ -93,12 +93,22 @@
           <div class="metric-sub" id="metric-dif-brl">R$ 0,00</div>
         </div>
       </div>
-      <div id="orcamento-list" class="list-container"></div>
+      
+      <div id="orcamento-subtotais-container"></div>
+
+      <div class="framed-section" style="border-top-color: var(--accent-blue);">
+        <div class="framed-title">ITENS DE ORÇAMENTO</div>
+        <div id="orcamento-list" class="list-container"></div>
+      </div>
     </section>
 
     <section id="tab-gastos" class="tab-content">
-      <div class="section-title"><i class="fa-solid fa-receipt"></i> Lançamento de Gastos Reais</div>
-      <div id="gastos-list" class="list-container"></div>
+      <div id="gastos-subtotais-container"></div>
+      
+      <div class="framed-section" style="border-top-color: var(--accent-green);">
+        <div class="framed-title">LANÇAMENTO DE GASTOS REAIS</div>
+        <div id="gastos-list" class="list-container"></div>
+      </div>
     </section>
   </main>
 
@@ -127,8 +137,9 @@
           </select>
         </div>
         <div class="form-group"><label>Atração</label><input type="text" id="rot-atracao" class="form-control" required></div>
+        <div class="form-group"><label>Hora da Atividade (Ex: 09:30)</label><input type="text" id="rot-hora" class="form-control" placeholder="09:30"></div>
+        <div class="form-group"><label>Funcionamento (Ex: 9-18h)</label><input type="text" id="rot-funcionamento" class="form-control" placeholder="9-18h"></div>
         <div class="form-group"><label>Região</label><input type="text" id="rot-regiao" class="form-control"></div>
-        <div class="form-group"><label>Horário</label><input type="text" id="rot-horario" class="form-control"></div>
         <div class="form-group"><label>Endereço</label><input type="text" id="rot-endereco" class="form-control"></div>
         <div class="form-group"><label>Custo (€)</label><input type="number" step="0.01" id="rot-custo" class="form-control"></div>
         <div class="form-group"><label>Link Maps</label><input type="url" id="rot-link" class="form-control"></div>
@@ -146,9 +157,7 @@
       </div>
       <form id="form-orcamento" onsubmit="handleOrcamentoSubmit(event)">
         <input type="hidden" id="orc-id">
-        <div class="form-group"><label>Categoria</label>
-          <select id="orc-cat" class="form-control" required></select>
-        </div>
+        <div class="form-group"><label>Categoria</label><select id="orc-cat" class="form-control" required></select></div>
         <div class="form-group"><label>Item / Descrição</label><input type="text" id="orc-item" class="form-control" required></div>
         <div class="form-group"><label>Status</label>
           <select id="orc-status" class="form-control">
@@ -157,13 +166,13 @@
             <option value="PROJETADO">PROJETADO</option>
           </select>
         </div>
-        <div class="form-group"><label>Moeda do Valor Digitado</label>
+        <div class="form-group"><label>Moeda</label>
           <select id="orc-moeda" class="form-control">
             <option value="EUR">Euros (€)</option>
             <option value="BRL">Reais (R$)</option>
           </select>
         </div>
-        <div class="form-group"><label>Valor Digitado</label><input type="number" step="0.01" id="orc-proj" class="form-control" required></div>
+        <div class="form-group"><label>Valor</label><input type="number" step="0.01" id="orc-proj" class="form-control" required></div>
         <button type="submit" class="submit-btn">Salvar</button>
       </form>
     </div>
@@ -179,11 +188,9 @@
         <input type="hidden" id="gas-id">
         <div class="form-group"><label>Data do Gasto</label><input type="date" id="gas-data" class="form-control" required></div>
         <div class="form-group"><label>Cidade</label><select id="gas-cidade" class="form-control" required></select></div>
-        <div class="form-group"><label>Categoria</label>
-          <select id="gas-cat" class="form-control" required></select>
-        </div>
+        <div class="form-group"><label>Categoria</label><select id="gas-cat" class="form-control" required></select></div>
         <div class="form-group"><label>Descrição do Item</label><input type="text" id="gas-item" class="form-control" required></div>
-        <div class="form-group"><label>Moeda Paga</label>
+        <div class="form-group"><label>Moeda</label>
           <select id="gas-moeda" class="form-control">
             <option value="EUR">Euros (€)</option>
             <option value="BRL">Reais (R$)</option>
@@ -201,6 +208,6 @@
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=3.0"></script>
+  <script src="app.js?v=6.0"></script>
 </body>
 </html>

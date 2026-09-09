@@ -1,4 +1,3 @@
-// --- CONFIGURAÇÃO SUPABASE ---
 const SUPABASE_URL = "https://vgjxorgortxouxjojgtn.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnanhvcmdvcnR4b3V4am9qZ3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NjQzNDgsImV4cCI6MjEwNDM0MDM0OH0.IelNiUMUA04-mhWQl9j57qRKOXEfleHb8zYEyS_D1o8";
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -23,7 +22,6 @@ function normalizeStr(str) {
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// --- AUTENTICAÇÃO E INICIALIZAÇÃO COM PERSISTÊNCIA ---
 document.addEventListener("DOMContentLoaded", async () => {
   _supabase.auth.onAuthStateChange(async (event, currentSession) => {
     if (currentSession) {
@@ -48,11 +46,9 @@ async function handleLogin(e) {
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-senha").value;
   const errBox = document.getElementById("login-error");
-
   if (errBox) errBox.style.display = "none";
 
   const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-  
   if (error) {
     if (errBox) {
       errBox.innerText = `Erro: ${error.message}`;
@@ -72,15 +68,9 @@ async function logout() {
 async function startApp() {
   const loginModal = document.getElementById("modal-login");
   if (loginModal) loginModal.classList.remove("active");
-  
-  const mainContent = document.getElementById("main-content");
-  if (mainContent) mainContent.style.display = "block";
-  
-  const fabBtn = document.getElementById("fab-btn");
-  if (fabBtn) fabBtn.style.display = "flex";
-  
-  const bottomNav = document.getElementById("bottom-nav");
-  if (bottomNav) bottomNav.style.display = "flex";
+  document.getElementById("main-content").style.display = "block";
+  document.getElementById("fab-btn").style.display = "flex";
+  document.getElementById("bottom-nav").style.display = "flex";
 
   await loadAllData(true);
 }
@@ -118,9 +108,7 @@ function formatDayLabel(dayStr) {
 function parseDateForSort(dayStr) {
   if (!dayStr) return 9999;
   const match = dayStr.match(/(\d{2})\/(\d{2})/);
-  if (match) {
-    return parseInt(match[2]) * 100 + parseInt(match[1]);
-  }
+  if (match) return parseInt(match[2]) * 100 + parseInt(match[1]);
   return 9999;
 }
 
@@ -178,22 +166,16 @@ function switchTab(tabName, btn) {
 
 function openContextModal() {
   if (currentTab === 'roteiro') {
-    const elId = document.getElementById("rot-id");
-    if(elId) elId.value = "";
-    const form = document.getElementById("form-roteiro");
-    if(form) form.reset();
+    document.getElementById("rot-id").value = "";
+    document.getElementById("form-roteiro").reset();
     document.getElementById("modal-roteiro").classList.add("active");
   } else if (currentTab === 'orcamento') {
-    const elId = document.getElementById("orc-id");
-    if(elId) elId.value = "";
-    const form = document.getElementById("form-orcamento");
-    if(form) form.reset();
+    document.getElementById("orc-id").value = "";
+    document.getElementById("form-orcamento").reset();
     document.getElementById("modal-orcamento").classList.add("active");
   } else if (currentTab === 'gastos') {
-    const elId = document.getElementById("gas-id");
-    if(elId) elId.value = "";
-    const form = document.getElementById("form-gastos");
-    if(form) form.reset();
+    document.getElementById("gas-id").value = "";
+    document.getElementById("form-gastos").reset();
     document.getElementById("gas-data").value = new Date().toISOString().split('T')[0];
     document.getElementById("modal-gastos").classList.add("active");
   }
@@ -212,7 +194,6 @@ function renderDaysCarousel() {
   if (currentFilter !== "TODAS") {
     uniqueDays = [...new Set(roteiroData.filter(i => i.cidade === currentFilter).map(item => item.dia))];
   }
-
   uniqueDays.sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
 
   uniqueDays.forEach(dayStr => {
@@ -233,10 +214,7 @@ function renderCityChips() {
   if (currentSelectedDay) {
     validCities = [...new Set(roteiroData.filter(i => i.dia === currentSelectedDay).map(i => i.cidade ? i.cidade.toUpperCase() : ""))];
   }
-  
-  if (currentFilter !== "TODAS" && !validCities.includes(currentFilter)) {
-    currentFilter = "TODAS";
-  }
+  if (currentFilter !== "TODAS" && !validCities.includes(currentFilter)) currentFilter = "TODAS";
 
   cityBar.innerHTML = `<button class="chip ${currentFilter === "TODAS" ? 'active' : ''}" onclick="filterCity('TODAS')">Todas</button>`;
   validCities.forEach(city => {
@@ -285,14 +263,14 @@ function openMaps(link, atracao, endereco) {
 function editRoteiro(id) {
   const item = roteiroData.find(i => i.id === id);
   if(!item) return;
-  const elId = document.getElementById("rot-id");
-  if(elId) elId.value = item.id;
+  document.getElementById("rot-id").value = item.id;
   document.getElementById("rot-dia").value = item.dia;
   document.getElementById("rot-cidade").value = item.cidade;
   document.getElementById("rot-categoria").value = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
   document.getElementById("rot-atracao").value = item.atracao;
+  document.getElementById("rot-hora").value = item.hora || "";
+  document.getElementById("rot-funcionamento").value = item.funcionamento || item.horario || "";
   document.getElementById("rot-regiao").value = item.regiao || "";
-  document.getElementById("rot-horario").value = item.horario || "";
   document.getElementById("rot-endereco").value = item.endereco || "";
   document.getElementById("rot-custo").value = item.custo || "";
   document.getElementById("rot-link").value = item.link || "";
@@ -314,12 +292,14 @@ function renderTimeline() {
   filtered.forEach(item => {
     let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
 
+    let funcVal = item.funcionamento || item.horario || "";
+
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM") {
       container.innerHTML += `
         <div class="train-strip" data-id="${item.id}">
           <div class="train-info">
             <span class="train-title"><i class="fa-solid fa-train"></i> ${item.atracao}</span>
-            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.horario || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
+            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
             <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
@@ -339,28 +319,33 @@ function renderTimeline() {
     const isFeito = item.feito ? 'feito' : '';
     const btnFeitoClass = item.feito ? 'active' : '';
     const hasMapsLink = item.link && item.link.trim().startsWith("http");
+    const horaStr = item.hora ? item.hora.trim() : "--:--";
 
     container.innerHTML += `
       <div class="card ${isFeito}" data-id="${item.id}">
-        <div class="card-top" style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="card-top-left">
-            <span class="badge-cat" style="background: ${catBg}">${catDisplay}</span>
-            <span class="card-time">${item.horario || ''}</span>
+        <div class="card-agenda-layout">
+          <div class="card-time-col">
+            <span class="card-time-text">${horaStr}</span>
           </div>
-          <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
-        </div>
-        
-        <div class="card-title">${item.atracao}</div>
-        ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao : ''}</div>` : ''}
-        ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
-        
-        <div class="card-actions" style="margin-top:10px; display:flex; justify-content:flex-end;">
-          <div class="action-group" style="display:flex; gap:6px; align-items:center;">
-             <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-             ${hasMapsLink ? `<button class="btn-act" onclick="openMaps('${item.link.trim()}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>` : ''}
-             <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
-             <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-             <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
+          <div class="card-body-col">
+            <div class="card-top">
+              <span class="badge-cat" style="background: ${catBg}">${catDisplay}</span>
+              <span class="card-cost">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
+            </div>
+            <div class="card-title">${item.atracao}</div>
+            ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
+            ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao : ''}</div>` : ''}
+            ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
+            
+            <div class="card-actions">
+              <div class="action-group">
+                 <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
+                 ${hasMapsLink ? `<button class="btn-act" onclick="openMaps('${item.link.trim()}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>` : ''}
+                 <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                 <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                 <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
+              </div>
+            </div>
           </div>
         </div>
       </div>`;
@@ -369,9 +354,9 @@ function renderTimeline() {
   new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
-    delay: 100,
+    delay: 50,
     delayOnTouchOnly: true,
-    touchStartThreshold: 3,
+    touchStartThreshold: 2,
     onEnd: async function () {
       const cards = container.children;
       for (let index = 0; index < cards.length; index++) {
@@ -397,8 +382,9 @@ async function handleRoteiroSubmit(e) {
     cidade: document.getElementById("rot-cidade").value,
     atracao: document.getElementById("rot-atracao").value, 
     categoria: catVal === "DESTAQUE" ? "MARCO" : catVal,
+    hora: document.getElementById("rot-hora").value,
+    funcionamento: document.getElementById("rot-funcionamento").value,
     regiao: document.getElementById("rot-regiao").value, 
-    horario: document.getElementById("rot-horario").value,
     endereco: document.getElementById("rot-endereco").value, 
     custo: parseFloat(document.getElementById("rot-custo").value) || 0,
     link: document.getElementById("rot-link").value, 
@@ -435,17 +421,16 @@ function renderOrcamento() {
   gastosData.forEach(g => {
     let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
     totalGastosReais += (valEur || 0);
-
     let catNorm = normalizeStr(g.categoria);
     if (!gastosPorCat[catNorm]) gastosPorCat[catNorm] = 0;
     gastosPorCat[catNorm] += (valEur || 0);
   });
 
   let efetivoOrcamentoPagos = 0;
-  const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
-  let sortedOrcamento = [...orcamentoData].sort((a,b) => (orderMap[a.status] || 9) - (orderMap[b.status] || 9));
 
-  sortedOrcamento.forEach(item => {
+  const orderMap = { "GASTO REAL": 1, "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
+
+  let processedOrcamento = orcamentoData.map(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
     projTot += projEur;
 
@@ -453,9 +438,7 @@ function renderOrcamento() {
     let normCat = normalizeStr(catName);
     let normItem = normalizeStr(item.item);
 
-    if (!catTotals[catName]) {
-      catTotals[catName] = { proj: 0, efet: 0 };
-    }
+    if (!catTotals[catName]) catTotals[catName] = { proj: 0, efet: 0 };
     catTotals[catName].proj += projEur;
 
     let gastoVinculado = gastosData.find(g => {
@@ -484,16 +467,21 @@ function renderOrcamento() {
       statusColor = "#ea580c";
     }
 
-    let displayValBrl = displayValEur * euroMedio;
+    return { ...item, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, gastoVinculado };
+  });
 
+  processedOrcamento.sort((a, b) => a.sortWeight - b.sortWeight);
+
+  processedOrcamento.forEach(item => {
+    let displayValBrl = item.displayValEur * euroMedio;
     container.innerHTML += `
       <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-left">
           <div style="font-weight:700;">${item.item}</div>
-          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${statusColor}; font-weight:700;">${statusText}</span> ${gastoVinculado ? `<span style="font-size:0.7rem; opacity:0.8;">(Proj: € ${projEur.toFixed(2)})</span>` : ''}</div>
+          <div class="list-item-sub" style="font-size:0.8rem;">${item.categoria} • <span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
         </div>
         <div class="list-item-right" style="text-align:right;">
-          <div style="font-weight:800; color:${statusColor}">€ ${displayValEur.toFixed(2)}</div>
+          <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>
           <div class="list-item-sub" style="font-size:0.75rem;">R$ ${displayValBrl.toFixed(2)}</div>
           <div style="margin-top:4px; display:flex; gap:4px; justify-content:flex-end;">
             <button class="btn-act" onclick="editOrcamento(${item.id})" style="padding:2px 6px; font-size:0.7rem;"><i class="fa-solid fa-pen"></i></button>
@@ -505,69 +493,48 @@ function renderOrcamento() {
 
   for (const [catName, val] of Object.entries(catTotals)) {
     let catNorm = normalizeStr(catName);
-    if (val.efet === 0 && gastosPorCat[catNorm]) {
-      val.efet = gastosPorCat[catNorm];
-    }
+    if (val.efet === 0 && gastosPorCat[catNorm]) val.efet = gastosPorCat[catNorm];
   }
 
   let efetTot = totalGastosReais + efetivoOrcamentoPagos;
   let aPagarEur = Math.max(0, projTot - efetTot);
 
-  const mProjEur = document.getElementById("metric-proj-eur");
-  const mProjBrl = document.getElementById("metric-proj-brl");
-  const mEfetEur = document.getElementById("metric-efet-eur");
-  const mEfetBrl = document.getElementById("metric-efet-brl");
-  const mDifEur  = document.getElementById("metric-dif-eur");
-  const mDifBrl  = document.getElementById("metric-dif-brl");
-
-  if(mProjEur) mProjEur.innerText = `€ ${projTot.toFixed(2)}`;
-  if(mProjBrl) mProjBrl.innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
-  if(mEfetEur) mEfetEur.innerText = `€ ${efetTot.toFixed(2)}`;
-  if(mEfetBrl) mEfetBrl.innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
-  if(mDifEur)  mDifEur.innerText  = `€ ${aPagarEur.toFixed(2)}`;
-  if(mDifBrl)  mDifBrl.innerText  = `R$ ${(aPagarEur * euroMedio).toFixed(2)}`;
+  document.getElementById("metric-proj-eur").innerText = `€ ${projTot.toFixed(2)}`;
+  document.getElementById("metric-proj-brl").innerText = `R$ ${(projTot * euroMedio).toFixed(2)}`;
+  document.getElementById("metric-efet-eur").innerText = `€ ${efetTot.toFixed(2)}`;
+  document.getElementById("metric-efet-brl").innerText = `R$ ${(efetTot * euroMedio).toFixed(2)}`;
+  document.getElementById("metric-dif-eur").innerText  = `€ ${aPagarEur.toFixed(2)}`;
+  document.getElementById("metric-dif-brl").innerText  = `R$ ${(aPagarEur * euroMedio).toFixed(2)}`;
 
   renderSubtotaisOrcamento(catTotals);
 }
 
 function renderSubtotaisOrcamento(catTotals) {
-  let subContainer = document.getElementById("orcamento-subtotais");
-  const tabOrc = document.getElementById("tab-orcamento");
-  if (!tabOrc) return;
+  let subContainer = document.getElementById("orcamento-subtotais-container");
+  if (!subContainer) return;
 
-  if (!subContainer) {
-    subContainer = document.createElement("div");
-    subContainer.id = "orcamento-subtotais";
-    subContainer.style.marginTop = "20px";
-    subContainer.style.padding = "14px";
-    subContainer.style.borderRadius = "12px";
-    subContainer.className = "list-item";
-    tabOrc.appendChild(subContainer);
-  }
+  let html = `
+    <div class="sec-subtotals-box" style="border-top-color: var(--accent-orange);">
+      <div class="sec-subtotals-title">RESUMO POR CATEGORIA</div>
+      <div class="subgrid">`;
 
-  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:800; letter-spacing:0.5px;">RESUMO POR CATEGORIA</h4>`;
   for (const [cat, vals] of Object.entries(catTotals)) {
-    let projBrl = vals.proj * euroMedio;
     let efetBrl = vals.efet * euroMedio;
-    let isEquals = Math.abs(vals.proj - vals.efet) < 0.05;
-
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color); font-size:0.85rem;">
-        <span style="font-weight:700;">${cat}</span>
-        <div style="text-align:right;">
-          <div style="color:#059669; font-weight:800;">€ ${vals.efet.toFixed(2)} <span style="font-size:0.75rem; font-weight:500; opacity:0.8;">(R$ ${efetBrl.toFixed(2)})</span></div>
-          ${!isEquals ? `<div style="font-size:0.75rem; color:#ea580c; font-weight:600;">Projetado: € ${vals.proj.toFixed(2)} (R$ ${projBrl.toFixed(2)})</div>` : ''}
-        </div>
+      <div class="subtile">
+        <span>${cat}</span>
+        <strong>€ ${vals.efet.toFixed(2)}</strong>
+        <small>R$ ${efetBrl.toFixed(2)}</small>
       </div>`;
   }
+  html += `</div></div>`;
   subContainer.innerHTML = html;
 }
 
 function editOrcamento(id) {
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
-  const elId = document.getElementById("orc-id");
-  if(elId) elId.value = item.id;
+  document.getElementById("orc-id").value = item.id;
   document.getElementById("orc-cat").value = item.categoria.trim();
   document.getElementById("orc-item").value = item.item.trim();
   document.getElementById("orc-status").value = item.status;
@@ -575,17 +542,14 @@ function editOrcamento(id) {
   
   let valDisplay = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
   document.getElementById("orc-proj").value = parseFloat(valDisplay).toFixed(2);
-  
   document.getElementById("modal-orcamento").classList.add("active");
 }
 
 async function handleOrcamentoSubmit(e) {
   if(e) e.preventDefault();
-  const elId = document.getElementById("orc-id");
-  const idStr = elId ? elId.value : "";
+  const idStr = document.getElementById("orc-id").value;
   const moeda = document.getElementById("orc-moeda").value;
   const valRaw = parseFloat(document.getElementById("orc-proj").value) || 0;
-
   const projEurVal = moeda === "BRL" ? (valRaw / euroMedio) : valRaw;
 
   const payload = {
@@ -596,11 +560,8 @@ async function handleOrcamentoSubmit(e) {
     projetado_eur: projEurVal
   };
 
-  if(idStr) {
-    await _supabase.from('orcamento').update(payload).eq('id', parseInt(idStr));
-  } else {
-    await _supabase.from('orcamento').insert([payload]);
-  }
+  if(idStr) await _supabase.from('orcamento').update(payload).eq('id', parseInt(idStr));
+  else await _supabase.from('orcamento').insert([payload]);
 
   closeModal('modal-orcamento'); 
   await loadAllData(false);
@@ -611,20 +572,16 @@ function formatGastoDateLabel(dateStr) {
   let cleanDate = dateStr.toString().trim().split("T")[0];
   const parts = cleanDate.split("-");
   if (parts.length < 3) return dateStr;
-  const year = parseInt(parts[0]);
-  const month = parseInt(parts[1]) - 1;
-  const day = parseInt(parts[2]);
-  
-  const dateObj = new Date(year, month, day);
+  const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   const diasSemana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
   const dayOfWeekStr = diasSemana[dateObj.getDay()];
-  
-  const formattedDay = (parts[2].length === 1 ? '0' + parts[2] : parts[2]) + "/" + (parts[1].length === 1 ? '0' + parts[1] : parts[1]);
+  const formattedDay = `${parts[2]}/${parts[1]}`;
   return `${formattedDay} ${dayOfWeekStr}`;
 }
 
 function renderGastos() {
   const container = document.getElementById("gastos-list");
+  const subContainer = document.getElementById("gastos-subtotais-container");
   if(!container) return;
   container.innerHTML = "";
   let catGastos = {};
@@ -656,56 +613,36 @@ function renderGastos() {
       </div>`;
   });
 
-  renderSubtotaisGastos(catGastos);
-}
-
-function renderSubtotaisGastos(catGastos) {
-  let subContainer = document.getElementById("gastos-subtotais");
-  const tabGas = document.getElementById("tab-gastos");
-  if (!tabGas) return;
-
-  if (!subContainer) {
-    subContainer = document.createElement("div");
-    subContainer.id = "gastos-subtotais";
-    subContainer.style.marginTop = "20px";
-    subContainer.style.padding = "14px";
-    subContainer.style.borderRadius = "12px";
-    subContainer.className = "list-item";
-    tabGas.appendChild(subContainer);
+  if (subContainer) {
+    let html = `
+      <div class="sec-subtotals-box" style="border-top-color: var(--accent-green);">
+        <div class="sec-subtotals-title">GASTOS POR CATEGORIA</div>
+        <div class="subgrid">`;
+    for (const [cat, valEur] of Object.entries(catGastos)) {
+      let valBrl = valEur * euroMedio;
+      html += `
+        <div class="subtile">
+          <span>${cat}</span>
+          <strong>€ ${valEur.toFixed(2)}</strong>
+          <small>R$ ${valBrl.toFixed(2)}</small>
+        </div>`;
+    }
+    html += `</div></div>`;
+    subContainer.innerHTML = html;
   }
-
-  let html = `<h4 style="margin-bottom:12px; font-size:0.85rem; font-weight:800; letter-spacing:0.5px;">GASTOS POR CATEGORIA</h4>`;
-  for (const [cat, valEur] of Object.entries(catGastos)) {
-    let valBrl = valEur * euroMedio;
-    html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color); font-size:0.85rem;">
-        <span style="font-weight:700;">${cat}</span>
-        <div style="text-align:right;">
-          <div style="color:#059669; font-weight:800;">€ ${valEur.toFixed(2)} <span style="font-size:0.75rem; font-weight:500; opacity:0.8;">(R$ ${valBrl.toFixed(2)})</span></div>
-        </div>
-      </div>`;
-  }
-  subContainer.innerHTML = html;
 }
 
 function editGasto(id) {
   const item = gastosData.find(i => i.id === id);
   if(!item) return;
-  const elId = document.getElementById("gas-id");
-  if(elId) elId.value = item.id;
+  document.getElementById("gas-id").value = item.id;
   
   let rawDate = "";
   if (item.data) {
     let clean = item.data.toString().trim().split("T")[0];
-    if (clean.includes("/")) {
-      const p = clean.split("/");
-      if (p.length === 3) rawDate = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
-    } else {
-      rawDate = clean;
-    }
+    rawDate = clean;
   }
   document.getElementById("gas-data").value = rawDate;
-  
   document.getElementById("gas-cidade").value = item.cidade || "GERAL";
   document.getElementById("gas-cat").value = item.categoria.trim();
   document.getElementById("gas-item").value = item.item.trim();
@@ -713,14 +650,12 @@ function editGasto(id) {
   
   let valGasto = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
   document.getElementById("gas-valor").value = parseFloat(valGasto).toFixed(2);
-  
   document.getElementById("modal-gastos").classList.add("active");
 }
 
 async function handleGastosSubmit(e) {
   if(e) e.preventDefault();
-  const elId = document.getElementById("gas-id");
-  const idStr = elId ? elId.value : "";
+  const idStr = document.getElementById("gas-id").value;
   const moeda = document.getElementById("gas-moeda").value;
   const valor = parseFloat(document.getElementById("gas-valor").value) || 0;
   
@@ -734,11 +669,8 @@ async function handleGastosSubmit(e) {
     valor_brl: moeda === "BRL" ? valor : (valor * euroMedio)
   };
 
-  if(idStr) {
-    await _supabase.from('gastos').update(payload).eq('id', parseInt(idStr));
-  } else {
-    await _supabase.from('gastos').insert([payload]);
-  }
+  if(idStr) await _supabase.from('gastos').update(payload).eq('id', parseInt(idStr));
+  else await _supabase.from('gastos').insert([payload]);
 
   closeModal('modal-gastos'); 
   await loadAllData(false);
@@ -746,15 +678,9 @@ async function handleGastosSubmit(e) {
 
 function exportToXLSX() {
   const wb = XLSX.utils.book_new();
-  
-  const wsRot = XLSX.utils.json_to_sheet(roteiroData);
-  const wsOrc = XLSX.utils.json_to_sheet(orcamentoData);
-  const wsGas = XLSX.utils.json_to_sheet(gastosData);
-
-  XLSX.utils.book_append_sheet(wb, wsRot, "ROTEIRO");
-  XLSX.utils.book_append_sheet(wb, wsOrc, "ORÇAMENTO");
-  XLSX.utils.book_append_sheet(wb, wsGas, "GASTOS");
-
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(roteiroData), "ROTEIRO");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcamentoData), "ORÇAMENTO");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gastosData), "GASTOS");
   XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
 
