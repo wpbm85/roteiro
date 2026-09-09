@@ -562,6 +562,7 @@ function renderOrcamento() {
     // Pode haver mais de um gasto vinculado ao mesmo item (ex.: hotel pago em 2 parcelas).
     let gastosVinculados = gastosData.filter(g => g.orcamento_id === item.id);
     let isLinked = gastosVinculados.length > 0;
+    let cidadesGastosVinculados = [...new Set(gastosVinculados.map(g => (g.cidade || '').trim().toUpperCase()).filter(Boolean))];
 
     let displayValEur = projEur;
     let statusText = item.status;
@@ -587,7 +588,7 @@ function renderOrcamento() {
       statusColor = "#ea580c";
     }
 
-    return { ...item, catName, cidadeName, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked };
+    return { ...item, catName, cidadeName, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked, cidadesGastosVinculados };
   });
 
   processedOrcamento.sort((a, b) => a.sortWeight - b.sortWeight);
@@ -618,24 +619,24 @@ function renderOrcamento() {
     const subProj = itensCategoria.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
     const subEfet = itensCategoria.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
 
-    let porCidade = {};
-    itensCategoria.forEach(item => {
-      if (!porCidade[item.cidadeName]) porCidade[item.cidadeName] = [];
-      porCidade[item.cidadeName].push(item);
+    // Ordem: status (pago/projetado/a pagar) primeiro; dentro do mesmo status, pela ordem das cidades no roteiro.
+    const itensOrdenados = [...itensCategoria].sort((a, b) => {
+      if (a.sortWeight !== b.sortWeight) return a.sortWeight - b.sortWeight;
+      const ia = CIDADES_FIXAS.indexOf(a.cidadeName), ib = CIDADES_FIXAS.indexOf(b.cidadeName);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
     });
-    const nomesCidade = Object.keys(porCidade).sort(ordenarPorListaFixa(CIDADES_FIXAS));
 
-    let bodyHtml = '';
-    nomesCidade.forEach(cid => {
-      bodyHtml += `<div class="city-subheader">${cid.charAt(0) + cid.slice(1).toLowerCase()}</div>`;
-      porCidade[cid].forEach(item => { bodyHtml += renderOrcamentoItemHtml(item); });
+    let bodyHtml = itensOrdenados.map(item => renderOrcamentoItemHtml(item)).join('');
 
+    // Referência do Roteiro: uma dica por cidade presente nesta categoria (a cidade já vai no texto).
+    const cidadesPresentes = [...new Set(itensCategoria.map(i => i.cidadeName))].sort(ordenarPorListaFixa(CIDADES_FIXAS));
+    cidadesPresentes.forEach(cid => {
       const ref = getReferenciaRoteiro(cat, cid);
       if (ref.total > 0) {
         bodyHtml += `
           <div class="roteiro-ref-hint">
             <i class="fa-solid fa-map-location-dot"></i>
-            <span>Já no roteiro (${ref.nomes}): <strong>€ ${ref.total.toFixed(2)}</strong> · ${ref.count} ${ref.count === 1 ? 'item' : 'itens'} · não somado automaticamente</span>
+            <span>Já no roteiro em ${cid.charAt(0) + cid.slice(1).toLowerCase()} (${ref.nomes}): <strong>€ ${ref.total.toFixed(2)}</strong> · ${ref.count} ${ref.count === 1 ? 'item' : 'itens'} · não somado automaticamente</span>
           </div>`;
       }
     });
@@ -702,11 +703,21 @@ function renderOrcamentoItemHtml(item) {
     : `<button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
   const acoes = `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
     ${excluirOuCadeado}`;
+
+  const cidadeLabel = item.cidadeName.charAt(0) + item.cidadeName.slice(1).toLowerCase();
+
+  // GERAL mas o(s) gasto(s) vinculado(s) são de uma cidade específica: provável cidade desatualizada.
+  const divergeCidade = item.cidadeName === 'GERAL' && item.cidadesGastosVinculados.length > 0 && !item.cidadesGastosVinculados.includes('GERAL');
+  const avisoCidade = divergeCidade
+    ? `<div style="margin-top:3px; font-size:0.7rem; color:#d97706;" title="Ajuste a Cidade deste item de orçamento"><i class="fa-solid fa-triangle-exclamation"></i> gasto real é de ${item.cidadesGastosVinculados.join('/')} </div>`
+    : '';
+
   return `
     <div class="list-item">
       <div class="list-item-left">
         <div style="font-weight:700;">${item.item}</div>
-        <div class="list-item-sub"><span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
+        <div class="list-item-sub"><span style="color:var(--text-muted);">${cidadeLabel}</span> • <span style="color:${item.statusColor}; font-weight:700;">${item.statusText}</span></div>
+        ${avisoCidade}
       </div>
       <div class="list-item-right" style="text-align:right;">
         <div style="font-weight:800; color:${item.statusColor}">€ ${item.displayValEur.toFixed(2)}</div>

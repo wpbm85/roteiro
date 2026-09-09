@@ -353,14 +353,6 @@ header {
 .cat-group[open] .cat-group-name::before { transform: rotate(90deg); }
 .cat-group-totals { font-size: 0.8rem; font-weight: 700; text-transform: none; letter-spacing: normal; white-space: nowrap; }
 .cat-group-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-.city-subheader {
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 6px 2px 0;
-}
 .roteiro-ref-hint {
   display: flex;
   align-items: flex-start;
