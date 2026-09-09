@@ -13,6 +13,7 @@ let isInitialized = false;
 let roteiroData = [];
 let orcamentoData = [];
 let gastosData = [];
+let sortableInstance = null;
 
 const DIAS_TRADUCAO = {
   'MON': 'SEG', 'TUE': 'TER', 'WED': 'QUA', 'THU': 'QUI', 'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
@@ -21,6 +22,17 @@ const DIAS_TRADUCAO = {
 function normalizeStr(str) {
   if (!str) return "";
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Mostra um alerta amigável quando uma operação no Supabase falha.
+// Retorna true se HOUVE erro (para o código chamador poder abortar o fluxo).
+function checkError(error, contexto) {
+  if (error) {
+    console.error(`[Supabase] Erro ao ${contexto}:`, error);
+    alert(`Não foi possível ${contexto}.\n\nDetalhe: ${error.message || 'erro desconhecido'}`);
+    return true;
+  }
+  return false;
 }
 
 function formatTimeMask(input) {
@@ -92,9 +104,16 @@ async function startApp() {
 }
 
 async function loadAllData(isFirstLoad = false) {
-  const { data: rot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
-  const { data: orc } = await _supabase.from('orcamento').select('*');
-  const { data: gas } = await _supabase.from('gastos').select('*');
+  const { data: rot, error: errRot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
+  const { data: orc, error: errOrc } = await _supabase.from('orcamento').select('*');
+  const { data: gas, error: errGas } = await _supabase.from('gastos').select('*');
+
+  const houveErro = checkError(errRot, 'carregar o roteiro')
+    || checkError(errOrc, 'carregar o orçamento')
+    || checkError(errGas, 'carregar os gastos');
+  if (houveErro) {
+    // Mesmo com erro, seguimos com o que veio (arrays vazios) para não travar a tela.
+  }
 
   roteiroData = rot || [];
   orcamentoData = (orc || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
@@ -255,15 +274,22 @@ function setDoneFilter(type) {
 async function toggleDone(id) {
   const item = roteiroData.find(i => i.id === id);
   if(item) { 
-    item.feito = !item.feito; 
-    await _supabase.from('roteiro').update({ feito: item.feito }).eq('id', id);
-    renderTimeline(); 
+    const novoValor = !item.feito;
+    item.feito = novoValor;
+    renderTimeline(); // feedback visual imediato
+
+    const { error } = await _supabase.from('roteiro').update({ feito: novoValor }).eq('id', id);
+    if (checkError(error, 'salvar o check deste item')) {
+      item.feito = !novoValor; // reverte se a gravação falhou
+      renderTimeline();
+    }
   }
 }
 
 async function deleteItem(id, type) {
   if(!confirm("Tem certeza que deseja excluir?")) return;
-  await _supabase.from(type).delete().eq('id', id);
+  const { error } = await _supabase.from(type).delete().eq('id', id);
+  if (checkError(error, 'excluir este item')) return;
   await loadAllData(false);
 }
 
@@ -367,7 +393,12 @@ function renderTimeline() {
       </div>`;
   });
 
-new Sortable(container, {
+if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+
+  sortableInstance = new Sortable(container, {
     handle: '.drag-handle',
     animation: 150,
     delay: 100,
@@ -375,13 +406,19 @@ new Sortable(container, {
     touchStartThreshold: 5,
     onEnd: async function () {
       const cards = container.children;
+      let houveErro = false;
       for (let index = 0; index < cards.length; index++) {
         const id = parseInt(cards[index].getAttribute('data-id'));
         const target = roteiroData.find(r => r.id === id);
         if (target) {
           target.ordem = index + 1;
-          await _supabase.from('roteiro').update({ ordem: index + 1 }).eq('id', id);
+          const { error } = await _supabase.from('roteiro').update({ ordem: index + 1 }).eq('id', id);
+          if (error) houveErro = true;
         }
+      }
+      if (houveErro) {
+        checkError({ message: 'uma ou mais posições podem não ter sido salvas' }, 'salvar a nova ordem');
+        await loadAllData(false); // ressincroniza com o banco em caso de falha parcial
       }
     }
   });
@@ -407,14 +444,17 @@ async function handleRoteiroSubmit(e) {
     obs: document.getElementById("rot-obs").value
   };
 
+  let error;
   if(idStr) {
-    await _supabase.from('roteiro').update(payload).eq('id', parseInt(idStr));
+    ({ error } = await _supabase.from('roteiro').update(payload).eq('id', parseInt(idStr)));
   } else {
     payload.ordem = 99;
     payload.feito = false;
-    await _supabase.from('roteiro').insert([payload]);
+    ({ error } = await _supabase.from('roteiro').insert([payload]));
   }
-  
+
+  if (checkError(error, 'salvar esta atração')) return; // mantém o modal aberto com os dados preenchidos
+
   closeModal('modal-roteiro'); 
   await loadAllData(false);
 }
@@ -450,7 +490,7 @@ function renderOrcamento() {
     let projEur = parseFloat(item.projetado_eur) || 0;
     projTot += projEur;
 
-    let catName = item.categoria.trim();
+    let catName = (item.categoria || 'SEM CATEGORIA').trim();
     let normCat = normalizeStr(catName);
     let normItem = normalizeStr(item.item);
 
@@ -551,8 +591,8 @@ function editOrcamento(id) {
   const item = orcamentoData.find(i => i.id === id);
   if(!item) return;
   document.getElementById("orc-id").value = item.id;
-  document.getElementById("orc-cat").value = item.categoria.trim();
-  document.getElementById("orc-item").value = item.item.trim();
+  document.getElementById("orc-cat").value = (item.categoria || '').trim();
+  document.getElementById("orc-item").value = (item.item || '').trim();
   document.getElementById("orc-status").value = item.status;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
   
@@ -576,8 +616,11 @@ async function handleOrcamentoSubmit(e) {
     projetado_eur: projEurVal
   };
 
-  if(idStr) await _supabase.from('orcamento').update(payload).eq('id', parseInt(idStr));
-  else await _supabase.from('orcamento').insert([payload]);
+  let error;
+  if(idStr) ({ error } = await _supabase.from('orcamento').update(payload).eq('id', parseInt(idStr)));
+  else ({ error } = await _supabase.from('orcamento').insert([payload]));
+
+  if (checkError(error, 'salvar este item de orçamento')) return;
 
   closeModal('modal-orcamento'); 
   await loadAllData(false);
@@ -606,7 +649,7 @@ function renderGastos() {
     let eur = item.moeda === "BRL" ? (parseFloat(item.valor_brl) / euroMedio) : parseFloat(item.valor_eur);
     let brl = item.moeda === "EUR" ? (parseFloat(item.valor_eur) * euroMedio) : parseFloat(item.valor_brl);
     
-    let catName = item.categoria.trim();
+    let catName = (item.categoria || 'SEM CATEGORIA').trim();
     if(!catGastos[catName]) catGastos[catName] = 0;
     catGastos[catName] += eur;
 
@@ -660,8 +703,8 @@ function editGasto(id) {
   }
   document.getElementById("gas-data").value = rawDate;
   document.getElementById("gas-cidade").value = item.cidade || "GERAL";
-  document.getElementById("gas-cat").value = item.categoria.trim();
-  document.getElementById("gas-item").value = item.item.trim();
+  document.getElementById("gas-cat").value = (item.categoria || '').trim();
+  document.getElementById("gas-item").value = (item.item || '').trim();
   document.getElementById("gas-moeda").value = item.moeda || "EUR";
   
   let valGasto = item.moeda === "EUR" ? item.valor_eur : item.valor_brl;
@@ -685,8 +728,11 @@ async function handleGastosSubmit(e) {
     valor_brl: moeda === "BRL" ? valor : (valor * euroMedio)
   };
 
-  if(idStr) await _supabase.from('gastos').update(payload).eq('id', parseInt(idStr));
-  else await _supabase.from('gastos').insert([payload]);
+  let error;
+  if(idStr) ({ error } = await _supabase.from('gastos').update(payload).eq('id', parseInt(idStr)));
+  else ({ error } = await _supabase.from('gastos').insert([payload]));
+
+  if (checkError(error, 'lançar este gasto')) return;
 
   closeModal('modal-gastos'); 
   await loadAllData(false);
