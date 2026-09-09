@@ -523,8 +523,15 @@ async function handleRoteiroSubmit(e) {
   await loadAllData(false);
 }
 
-function updateEuro() {
-  euroMedio = parseFloat(document.getElementById("euro-input").value) || 5.98;
+function updateEuro(origemId) {
+  const idUsado = origemId || "euro-input";
+  euroMedio = parseFloat(document.getElementById(idUsado).value) || 5.98;
+
+  // Mesmo valor nas duas abas — sincroniza o campo que não foi editado agora.
+  const idOutro = idUsado === "euro-input" ? "euro-input-gastos" : "euro-input";
+  const outroEl = document.getElementById(idOutro);
+  if (outroEl) outroEl.value = euroMedio;
+
   renderOrcamento(); renderGastos();
 }
 
@@ -865,12 +872,19 @@ function renderGastos() {
   let catGastos = {};
 
   // Subtotais por categoria sempre consideram TODOS os gastos, independente do filtro da lista abaixo.
+  let totalGeralEur = 0;
   gastosData.forEach(g => {
     let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
+    totalGeralEur += (valEur || 0);
     let catName = (g.categoria || 'SEM CATEGORIA').trim();
     if(!catGastos[catName]) catGastos[catName] = 0;
     catGastos[catName] += (valEur || 0);
   });
+
+  const totalEurEl = document.getElementById("metric-gastos-total-eur");
+  const totalBrlEl = document.getElementById("metric-gastos-total-brl");
+  if (totalEurEl) totalEurEl.innerText = `€ ${totalGeralEur.toFixed(2)}`;
+  if (totalBrlEl) totalBrlEl.innerText = `R$ ${(totalGeralEur * euroMedio).toFixed(2)}`;
 
   const gastosFiltrados = currentGasCatFilter === "TODAS"
     ? gastosData
