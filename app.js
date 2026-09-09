@@ -1009,6 +1009,296 @@ function exportToXLSX() {
   XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
 
+// ===================== IMPORTAR EXCEL =====================
+// Só insere linhas cuja coluna "id" está vazia (ou seja, novas — nunca existiram no Supabase).
+// Linhas com "id" preenchido são ignoradas (já vieram de uma exportação anterior).
+
+const DIAS_SEMANA_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+
+const ALIASES_ROTEIRO = {
+  id: ['id'],
+  dia: ['dia', 'data dia', 'data / dia', 'data'],
+  hora: ['hora'],
+  cidade: ['cidade'],
+  regiao: ['regiao', 'região'],
+  ordem: ['ordem'],
+  categoria: ['categoria'],
+  atracao: ['atracao', 'atração', 'destaque'],
+  funcionamento: ['funcionamento', 'horario', 'horário'],
+  endereco: ['endereco', 'endereço'],
+  custo: ['custo'],
+  link: ['link'],
+  obs: ['obs', 'observacoes', 'observações'],
+  feito: ['feito']
+};
+
+const ALIASES_ORCAMENTO = {
+  id: ['id'],
+  categoria: ['categoria'],
+  cidade: ['cidade'],
+  item: ['item', 'item descricao', 'item / descrição', 'descricao', 'descrição'],
+  status: ['status'],
+  moeda: ['moeda'],
+  projetado_eur: ['projetado_eur', 'projetado eur', 'projetado (eur)', 'projetado (€)', 'projetado']
+};
+
+const ALIASES_GASTOS = {
+  id: ['id'],
+  data: ['data', 'data do gasto'],
+  cidade: ['cidade'],
+  categoria: ['categoria'],
+  item: ['item', 'descricao do item', 'descrição do item', 'descricao', 'descrição'],
+  moeda: ['moeda'],
+  valor_eur: ['valor_eur', 'valor eur', 'valor (eur)', 'valor (€)', 'valor'],
+  valor_brl: ['valor_brl', 'valor brl', 'valor (r$)', 'valor (brl)']
+};
+
+function normalizeHeader(str) {
+  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function linhaEstaVazia(valor) {
+  return valor === null || valor === undefined || valor.toString().trim() === '';
+}
+
+function paraNumero(valor) {
+  if (typeof valor === 'number') return valor;
+  if (typeof valor === 'string') {
+    const limpo = valor.replace(/[^\d,.-]/g, '').replace(',', '.');
+    const n = parseFloat(limpo);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+
+function encontrarAba(workbook, candidatos) {
+  const candNorm = candidatos.map(normalizeHeader);
+  const match = workbook.SheetNames.find(n => candNorm.includes(normalizeHeader(n)));
+  return match || null;
+}
+
+function resolverCampos(headers, aliasMap) {
+  const headersNorm = headers.map(h => ({ original: h, norm: normalizeHeader(h) }));
+  const resolved = {};
+  for (const [campo, aliases] of Object.entries(aliasMap)) {
+    const aliasesNorm = aliases.map(normalizeHeader);
+    const match = headersNorm.find(h => aliasesNorm.includes(h.norm));
+    resolved[campo] = match ? match.original : null;
+  }
+  return resolved;
+}
+
+function excelValorParaData(valor) {
+  if (valor instanceof Date) return valor;
+  if (typeof valor === 'string' && valor.trim()) {
+    const s = valor.trim();
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  }
+  return null;
+}
+
+function formatarDiaTexto(valor) {
+  const d = excelValorParaData(valor);
+  if (!d) return null;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm} ${DIAS_SEMANA_PT[d.getDay()]}`;
+}
+
+function formatarDataISO(valor) {
+  const d = excelValorParaData(valor);
+  if (!d) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatarHoraTexto(valor) {
+  if (valor instanceof Date) {
+    const hh = String(valor.getHours()).padStart(2, '0');
+    const mm = String(valor.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  if (typeof valor === 'string') {
+    const m = valor.trim().match(/^(\d{1,2}):(\d{2})/);
+    if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+  }
+  if (typeof valor === 'number') {
+    const totalMin = Math.round(valor * 24 * 60);
+    const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+    const mm = String(totalMin % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  return '';
+}
+
+function converterLinhaRoteiro(row, campos, avisos, numeroLinha) {
+  const atracao = campos.atracao ? (row[campos.atracao] || '').toString().trim() : '';
+  if (!atracao) return null;
+  const dia = campos.dia ? formatarDiaTexto(row[campos.dia]) : null;
+  if (!dia) { avisos.push(`Roteiro linha ${numeroLinha}: não entendi a data/dia, pulei essa linha.`); return null; }
+  let categoria = campos.categoria ? (row[campos.categoria] || '').toString().trim().toUpperCase() : '';
+  if (categoria && categoria !== 'MARCO' && !CATEGORIAS_ROTEIRO.includes(categoria)) {
+    avisos.push(`Roteiro linha ${numeroLinha}: categoria "${categoria}" não reconhecida, mantida assim mesmo.`);
+  }
+  return {
+    dia,
+    hora: campos.hora ? formatarHoraTexto(row[campos.hora]) : '',
+    cidade: ((campos.cidade ? row[campos.cidade] : '') || 'GERAL').toString().trim().toUpperCase(),
+    regiao: campos.regiao ? (row[campos.regiao] || '').toString().trim() : '',
+    ordem: campos.ordem ? (parseInt(row[campos.ordem]) || 99) : 99,
+    categoria: categoria || 'OUTRO',
+    atracao,
+    funcionamento: campos.funcionamento ? (row[campos.funcionamento] || '').toString().trim() : '',
+    endereco: campos.endereco ? (row[campos.endereco] || '').toString().trim() : '',
+    custo: campos.custo ? paraNumero(row[campos.custo]) : 0,
+    link: campos.link ? (row[campos.link] || '').toString().trim() : '',
+    obs: campos.obs ? (row[campos.obs] || '').toString().trim() : '',
+    feito: false
+  };
+}
+
+function converterLinhaOrcamento(row, campos, avisos, numeroLinha) {
+  const item = campos.item ? (row[campos.item] || '').toString().trim() : '';
+  if (!item) return null;
+  let categoria = campos.categoria ? (row[campos.categoria] || '').toString().trim().toUpperCase() : '';
+  if (categoria && !CATEGORIAS_FINANCEIRO.includes(categoria)) {
+    avisos.push(`Orçamento linha ${numeroLinha}: categoria "${categoria}" não reconhecida, mantida assim mesmo.`);
+  }
+  const cidade = ((campos.cidade ? row[campos.cidade] : '') || 'GERAL').toString().trim().toUpperCase();
+  let status = campos.status ? (row[campos.status] || '').toString().trim().toUpperCase() : '';
+  if (!['A PAGAR', 'PROJETADO', 'PAGO'].includes(status)) status = 'PROJETADO';
+  const moedaRaw = campos.moeda ? (row[campos.moeda] || '').toString().trim().toUpperCase() : '';
+  const moeda = moedaRaw === 'BRL' ? 'BRL' : 'EUR';
+  const projetado_eur = campos.projetado_eur ? paraNumero(row[campos.projetado_eur]) : 0;
+  return { categoria: categoria || 'OUTROS', cidade, item, status, moeda, projetado_eur };
+}
+
+function converterLinhaGastos(row, campos, avisos, numeroLinha) {
+  const item = campos.item ? (row[campos.item] || '').toString().trim() : '';
+  if (!item) return null;
+  const data = campos.data ? formatarDataISO(row[campos.data]) : null;
+  let categoria = campos.categoria ? (row[campos.categoria] || '').toString().trim().toUpperCase() : '';
+  if (categoria && !CATEGORIAS_FINANCEIRO.includes(categoria)) {
+    avisos.push(`Gastos linha ${numeroLinha}: categoria "${categoria}" não reconhecida, mantida assim mesmo.`);
+  }
+  const cidade = ((campos.cidade ? row[campos.cidade] : '') || 'GERAL').toString().trim().toUpperCase();
+  const moedaRaw = campos.moeda ? (row[campos.moeda] || '').toString().trim().toUpperCase() : '';
+  const moeda = moedaRaw === 'BRL' ? 'BRL' : 'EUR';
+  const valor_eur = campos.valor_eur ? paraNumero(row[campos.valor_eur]) : 0;
+  const valor_brl = campos.valor_brl ? paraNumero(row[campos.valor_brl]) : (valor_eur * euroMedio);
+  return { data, cidade, categoria: categoria || 'OUTROS', item, moeda, valor_eur, valor_brl, orcamento_id: null };
+}
+
+function processarAba(workbook, nomesAceitos, aliasMap, converterLinha, resultado, chave, camposChave) {
+  const nomeAba = encontrarAba(workbook, nomesAceitos);
+  if (!nomeAba) {
+    resultado.avisos.push(`Não encontrei a aba "${nomesAceitos[0]}" no arquivo — nada importado dela.`);
+    return;
+  }
+  const sheet = workbook.Sheets[nomeAba];
+  const linhas = XLSX.utils.sheet_to_json(sheet, { defval: null });
+  if (linhas.length === 0) return;
+
+  const campos = resolverCampos(Object.keys(linhas[0] || {}), aliasMap);
+  const faltando = camposChave.filter(c => !campos[c]);
+  if (faltando.length > 0) {
+    resultado.avisos.push(`Aba "${nomeAba}": não encontrei a(s) coluna(s) ${faltando.join(', ')} — confira os cabeçalhos.`);
+  }
+
+  linhas.forEach((row, idx) => {
+    const numeroLinha = idx + 2;
+    const idVal = campos.id ? row[campos.id] : null;
+    if (!linhaEstaVazia(idVal)) return; // já existe no Supabase — pula
+
+    const todaVazia = Object.values(row).every(linhaEstaVazia);
+    if (todaVazia) return;
+
+    const convertida = converterLinha(row, campos, resultado.avisos, numeroLinha);
+    if (convertida) resultado[chave].push(convertida);
+  });
+}
+
+let pendingImport = null;
+
+async function handleImportFile(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+
+  document.getElementById('import-preview-body').innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Lendo arquivo...</p>';
+  document.getElementById('btn-confirmar-importacao').style.display = 'none';
+  document.getElementById('modal-importar').classList.add('active');
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+
+    const resultado = { roteiro: [], orcamento: [], gastos: [], avisos: [] };
+    processarAba(workbook, ['ROTEIRO'], ALIASES_ROTEIRO, converterLinhaRoteiro, resultado, 'roteiro', ['dia', 'atracao']);
+    processarAba(workbook, ['ORÇAMENTO', 'ORCAMENTO'], ALIASES_ORCAMENTO, converterLinhaOrcamento, resultado, 'orcamento', ['item', 'categoria']);
+    processarAba(workbook, ['GASTOS'], ALIASES_GASTOS, converterLinhaGastos, resultado, 'gastos', ['item', 'data']);
+
+    pendingImport = resultado;
+    renderImportPreview(resultado);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('import-preview-body').innerHTML = `<p style="color:#dc2626;">Não consegui ler esse arquivo. Confirme que é um .xlsx válido.<br><small>${err.message || ''}</small></p>`;
+  }
+}
+
+function renderImportPreview(resultado) {
+  const body = document.getElementById('import-preview-body');
+  const totalNovas = resultado.roteiro.length + resultado.orcamento.length + resultado.gastos.length;
+
+  let html = '';
+  if (resultado.avisos.length > 0) {
+    html += `<div style="background:rgba(217,119,6,0.12); border:1px solid #d97706; border-radius:8px; padding:8px 10px; margin-bottom:12px; font-size:0.78rem; color:#d97706;">
+      ${resultado.avisos.map(a => `<div>⚠ ${a}</div>`).join('')}
+    </div>`;
+  }
+
+  const linhaResumo = (nome, arr) => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border-color);"><span>${nome}</span><strong>${arr.length} nova(s)</strong></div>`;
+  html += `<div style="margin-bottom:12px;">${linhaResumo('Roteiro', resultado.roteiro)}${linhaResumo('Orçamento', resultado.orcamento)}${linhaResumo('Gastos', resultado.gastos)}</div>`;
+
+  if (totalNovas === 0) {
+    html += `<p style="color:var(--text-muted); font-size:0.85rem;">Nenhuma linha nova encontrada (tudo já tem "id" preenchido, ou nenhuma aba foi reconhecida).</p>`;
+  } else {
+    const preview = (arr, campos) => arr.slice(0, 3).map(r => `<div style="font-size:0.75rem; color:var(--text-muted); padding:4px 0; border-bottom:1px dashed var(--border-color);">${campos.map(c => r[c]).filter(Boolean).join(' • ')}</div>`).join('');
+    if (resultado.roteiro.length) html += `<div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; margin-top:10px; color:var(--text-muted);">Prévia Roteiro (${resultado.roteiro.length})</div>${preview(resultado.roteiro, ['dia', 'atracao', 'cidade'])}`;
+    if (resultado.orcamento.length) html += `<div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; margin-top:10px; color:var(--text-muted);">Prévia Orçamento (${resultado.orcamento.length})</div>${preview(resultado.orcamento, ['categoria', 'item', 'cidade'])}`;
+    if (resultado.gastos.length) html += `<div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; margin-top:10px; color:var(--text-muted);">Prévia Gastos (${resultado.gastos.length})</div>${preview(resultado.gastos, ['data', 'item', 'cidade'])}`;
+  }
+
+  body.innerHTML = html;
+  document.getElementById('btn-confirmar-importacao').style.display = totalNovas > 0 ? 'block' : 'none';
+}
+
+async function confirmarImportacao() {
+  if (!pendingImport) return;
+  const btn = document.getElementById('btn-confirmar-importacao');
+  btn.disabled = true;
+  btn.innerText = 'Importando...';
+
+  const relatorio = [];
+  for (const [tabela, linhas] of [['roteiro', pendingImport.roteiro], ['orcamento', pendingImport.orcamento], ['gastos', pendingImport.gastos]]) {
+    if (linhas.length === 0) continue;
+    const { error } = await _supabase.from(tabela).insert(linhas);
+    relatorio.push(error ? `${tabela}: erro ao inserir (${error.message})` : `${tabela}: ${linhas.length} linha(s) importada(s) com sucesso`);
+  }
+
+  btn.disabled = false;
+  btn.innerText = 'Confirmar Importação';
+  pendingImport = null;
+  closeModal('modal-importar');
+  await loadAllData(false);
+  alert(relatorio.join('\n'));
+}
+
 window.openContextModal = openContextModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
@@ -1031,3 +1321,5 @@ window.formatTimeMask = formatTimeMask;
 window.filterOrcamentoCity = filterOrcamentoCity;
 window.filterGastosCat = filterGastosCat;
 window.refreshVinculoOptions = refreshVinculoOptions;
+window.handleImportFile = handleImportFile;
+window.confirmarImportacao = confirmarImportacao;

@@ -52,6 +52,8 @@
       <i class="fa-solid fa-plane-departure brand-icon" style="color: #ffffff;"></i> <span class="brand-title">Europa 2027</span>
     </div>
     <div class="header-actions">
+      <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;" onchange="handleImportFile(event)">
+      <button class="icon-btn" onclick="document.getElementById('import-file-input').click()" title="Importar Excel"><i class="fa-solid fa-file-import" style="color: #2563eb;"></i></button>
       <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i></button>
       <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket" style="color: #f8fafc;"></i></button>
     </div>
@@ -213,12 +215,26 @@
     </div>
   </div>
 
+  <div class="modal" id="modal-importar">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <div class="modal-title">Importar Excel</div>
+        <button class="close-btn" onclick="closeModal('modal-importar')">&times;</button>
+      </div>
+      <div id="import-preview-body"><p style="color:var(--text-muted); font-size:0.85rem;">Lendo arquivo...</p></div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="submit-btn" id="btn-confirmar-importacao" onclick="confirmarImportacao()" style="display:none;">Confirmar Importação</button>
+        <button class="submit-btn" style="background:var(--bg-card); border:1px solid var(--border-color);" onclick="closeModal('modal-importar')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="bottom-nav" id="bottom-nav" style="display:none;">
     <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Roteiro</span></button>
     <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=7.7"></script>
+  <script src="app.js?v=7.8"></script>
 </body>
 </html>
