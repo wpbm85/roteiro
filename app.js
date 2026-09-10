@@ -42,7 +42,7 @@ let currentGasCatFilter = "TODAS";
 
 function normalizeStr(str) {
   if (!str) return "";
-  return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str.toString().trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function checkError(error, contexto) {
@@ -1050,7 +1050,7 @@ const ALIASES_GASTOS = {
 };
 
 function normalizeHeader(str) {
-  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 function linhaEstaVazia(valor) {
@@ -1299,6 +1299,18 @@ function renderCalendario() {
   const container = document.getElementById("calendar-grid-container");
   if (!container) return;
 
+  const MAPA_ABREV = {
+    "AMSTERDAM": "AMS",
+    "BRUXELAS": "BRUX",
+    "GENT": "GENT",
+    "BRUGES": "BRUG",
+    "ROTERDAM": "ROT",
+    "HAIA": "HAIA",
+    "DELFT": "DELFT",
+    "PARIS": "PARIS",
+    "GERAL": "GERAL"
+  };
+
   const diasSemana = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
   let html = diasSemana.map(d => `<div class="cal-day-header">${d.slice(0, 3)}</div>`).join("");
 
@@ -1318,11 +1330,20 @@ function renderCalendario() {
 
     if (!diasMap[diaNum]) diasMap[diaNum] = { cidades: new Set(), deslocamentos: [] };
 
-    if (item.cidade) diasMap[diaNum].cidades.add(item.cidade.toUpperCase());
+    if (item.cidade) {
+      const cidUpper = item.cidade.toUpperCase();
+      diasMap[diaNum].cidades.add(MAPA_ABREV[cidUpper] || cidUpper);
+    }
 
     if (["ESTAÇÃO", "TREM", "AEROPORTO"].includes(item.categoria)) {
       const horaStr = item.hora ? item.hora.trim() : "";
-      diasMap[diaNum].deslocamentos.push({ hora: horaStr, atracao: item.atracao, cidade: item.cidade });
+      const isVoo = item.categoria === "AEROPORTO";
+      diasMap[diaNum].deslocamentos.push({ 
+        hora: horaStr, 
+        atracao: item.atracao, 
+        cidade: item.cidade,
+        isVoo: isVoo 
+      });
     }
   });
 
@@ -1339,15 +1360,16 @@ function renderCalendario() {
     }
 
     if (dados) {
+      const cidadesArr = Array.from(dados.cidades);
+      if (cidadesArr.length > 0) {
+        conteudo += `<div class="cal-cidade-badge">${cidadesArr.join(" / ")}</div>`;
+      }
+
       if (dados.deslocamentos.length > 0) {
         dados.deslocamentos.forEach(d => {
-          conteudo += `<div class="cal-migracao-badge"><i class="fa-solid fa-plane-departure" style="font-size:0.55rem;"></i> ${d.hora} ${d.atracao}</div>`;
+          const iconClass = d.isVoo ? "fa-plane-departure" : "fa-train";
+          conteudo += `<div class="cal-migracao-badge"><i class="fa-solid ${iconClass}" style="font-size:0.6rem;"></i> ${d.hora} ${d.atracao}</div>`;
         });
-      } else {
-        const cidadesArr = Array.from(dados.cidades);
-        if (cidadesArr.length > 0) {
-          conteudo += `<div class="cal-cidade-badge">${cidadesArr.join(" / ")}</div>`;
-        }
       }
     }
 

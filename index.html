@@ -7,147 +7,394 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Europa 2027</title>
-  
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="apple-touch-icon" href="icon.png">
 
+  <!-- Google Fonts & Font Awesome -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+
+  <!-- SheetJS & SortableJS -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=8.0">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <div class="modal active" id="modal-login" style="z-index: 999;">
-    <div class="modal-content" style="margin:auto; border-radius: 20px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <i class="fa-solid fa-plane-departure" style="font-size: 2.5rem; color: #2563eb;"></i>
-        <h2 style="margin-top: 10px; color: #ffffff;">Europa 2027</h2>
-        <p style="font-size: 0.85rem; color: #cbd5e1;">Acesso Restrito</p>
-      </div>
-      <form onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label>E-mail</label>
-          <input type="email" id="login-email" class="form-control" required placeholder="seu@email.com">
-        </div>
-        <div class="form-group">
-          <label>Senha</label>
-          <input type="password" id="login-senha" class="form-control" required placeholder="******">
-        </div>
-        <div id="login-error" style="color: #ef4444; font-size: 0.8rem; text-align: center; margin-bottom:10px; display:none;">Credenciais inválidas.</div>
-        <button type="submit" class="submit-btn" id="btn-login-submit">Entrar</button>
-      </form>
-    </div>
-  </div>
-
-  <header>
-    <div class="brand">
-      <i class="fa-solid fa-plane-departure brand-icon" style="color: #ffffff;"></i> <span class="brand-title">Europa 2027</span>
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <i class="fa-solid fa-plane-departure brand-icon"></i>
+      <h1 class="brand-title">Europa 2027</h1>
     </div>
     <div class="header-actions">
-      <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;" onchange="handleImportFile(event)">
-      <button class="icon-btn" onclick="document.getElementById('import-file-input').click()" title="Importar Excel"><i class="fa-solid fa-file-import" style="color: #2563eb;"></i></button>
-      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i></button>
-      <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket" style="color: #f8fafc;"></i></button>
+      <button class="icon-btn" onclick="document.getElementById('import-file-input').click()" title="Importar Excel">
+        <i class="fa-solid fa-file-import"></i>
+      </button>
+      <input type="file" id="import-file-input" accept=".xlsx" style="display:none;" onchange="handleImportFile(event)">
+      <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel">
+        <i class="fa-solid fa-file-excel"></i>
+      </button>
+      <button class="icon-btn" onclick="logout()" title="Sair">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
     </div>
   </header>
 
-  <main class="container" id="main-content" style="display:none;">
-    
+  <!-- Main Container -->
+  <main id="main-content" style="display: none;">
+
+    <!-- TAB 1: ROTEIRO -->
     <section id="tab-roteiro" class="tab-content active">
-      <div class="days-carousel" id="days-carousel-container"></div>
-      <div class="city-filters" id="city-bar"></div>
-      
-      <div class="filter-toggles">
-        <button class="toggle-btn active" id="btn-ver-tudo" onclick="setDoneFilter('ALL')">Ver Tudo</button>
-        <button class="toggle-btn" id="btn-ver-falta" onclick="setDoneFilter('PENDING')">O Que Falta</button>
+      <div class="filter-bar-container">
+        <div class="carousel-wrapper">
+          <div id="days-carousel-container" class="days-carousel"></div>
+        </div>
+        <div class="city-chips-wrapper">
+          <div id="city-bar" class="city-bar"></div>
+        </div>
       </div>
-      
-      <div id="timeline-container"></div>
+
+      <div class="status-toggle-bar">
+        <button id="btn-ver-tudo" class="toggle-btn active" onclick="setDoneFilter('ALL')">Tudo</button>
+        <button id="btn-ver-falta" class="toggle-btn" onclick="setDoneFilter('PENDING')">Pendentes</button>
+      </div>
+
+      <div id="timeline-container" class="timeline-list"></div>
     </section>
 
+    <!-- TAB 2: CALENDÁRIO -->
     <section id="tab-calendario" class="tab-content">
-      <div class="framed-section" style="margin-bottom: 16px;">
-        <div class="framed-title" style="display:flex; justify-content:space-between; align-items:center;">
-          <span>VISÃO GERAL • MAIO / 2027</span>
-          <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-plane"></i> Cidades & Migrações</span>
-        </div>
+      <div class="sec-header">
+        <h2>Visão Geral • Maio / 2027</h2>
+        <span class="subtext"><i class="fa-solid fa-plane-departure"></i> Cidades & Migrações</span>
+      </div>
+      <div class="calendar-wrapper">
         <div id="calendar-grid-container" class="calendar-grid"></div>
       </div>
     </section>
 
+    <!-- TAB 3: ORÇAMENTO -->
     <section id="tab-orcamento" class="tab-content">
-      <div class="euro-config">
-        <span class="euro-label"><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
-        <input type="number" step="0.01" id="euro-input" value="5.98" class="euro-field" onchange="updateEuro('euro-input')">
-      </div>
-      <div class="metrics-grid-3">
-        <div class="metric-card">
-          <div class="metric-title">PROJETADO</div>
-          <div class="metric-val" id="metric-proj-eur">€ 0,00</div>
-          <div class="metric-sub" id="metric-proj-brl">R$ 0,00</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">EFETIVADO</div>
-          <div class="metric-val" id="metric-efet-eur" style="color: #059669;">€ 0,00</div>
-          <div class="metric-sub" id="metric-efet-brl">R$ 0,00</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">A PAGAR</div>
-          <div class="metric-val" id="metric-dif-eur" style="color: #d97706;">€ 0,00</div>
-          <div class="metric-sub" id="metric-dif-brl">R$ 0,00</div>
+      <div class="finance-header">
+        <div class="currency-row">
+          <label for="euro-input"><i class="fa-solid fa-euro-sign"></i> Euro Médio (R$):</label>
+          <input type="number" id="euro-input" step="0.01" value="5.98" onchange="updateEuro('euro-input')">
         </div>
       </div>
-      
-      <div id="orcamento-subtotais-container"></div>
 
-      <div class="city-filters" id="orc-city-bar"></div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="m-label">Projetado</span>
+          <span id="metric-proj-eur" class="m-val">€ 0.00</span>
+          <span id="metric-proj-brl" class="m-sub">R$ 0.00</span>
+        </div>
+        <div class="metric-card success">
+          <span class="m-label">Efetivado / Pago</span>
+          <span id="metric-efet-eur" class="m-val">€ 0.00</span>
+          <span id="metric-efet-brl" class="m-sub">R$ 0.00</span>
+        </div>
+        <div class="metric-card warning">
+          <span class="m-label">A Pagar</span>
+          <span id="metric-dif-eur" class="m-val">€ 0.00</span>
+          <span id="metric-dif-brl" class="m-sub">R$ 0.00</span>
+        </div>
+      </div>
+
+      <div class="city-chips-wrapper">
+        <div id="orc-city-bar" class="city-bar"></div>
+      </div>
       <div id="orc-city-total"></div>
 
-      <div class="framed-section">
-        <div class="framed-title">ITENS DE ORÇAMENTO</div>
-        <div id="orcamento-list" class="list-container"></div>
-      </div>
+      <div id="orcamento-list" class="finance-list"></div>
+      <div id="orcamento-subtotais-container"></div>
     </section>
 
+    <!-- TAB 4: GASTOS -->
     <section id="tab-gastos" class="tab-content">
-      <div class="euro-config">
-        <span class="euro-label"><i class="fa-solid fa-money-bill-transfer"></i> Euro Médio (R$):</span>
-        <input type="number" step="0.01" id="euro-input-gastos" value="5.98" class="euro-field" onchange="updateEuro('euro-input-gastos')">
-      </div>
-      <div class="metric-card" style="margin-bottom:16px;">
-        <div class="metric-title">TOTAL GASTO</div>
-        <div class="metric-val" id="metric-gastos-total-eur" style="color:#059669; font-size:1.3rem;">€ 0,00</div>
-        <div class="metric-sub" id="metric-gastos-total-brl">R$ 0,00</div>
+      <div class="finance-header">
+        <div class="currency-row">
+          <label for="euro-input-gastos"><i class="fa-solid fa-euro-sign"></i> Euro Médio (R$):</label>
+          <input type="number" id="euro-input-gastos" step="0.01" value="5.98" onchange="updateEuro('euro-input-gastos')">
+        </div>
       </div>
 
+      <div class="metrics-grid single">
+        <div class="metric-card danger">
+          <span class="m-label">Total Gasto Real</span>
+          <span id="metric-gastos-total-eur" class="m-val">€ 0.00</span>
+          <span id="metric-gastos-total-brl" class="m-sub">R$ 0.00</span>
+        </div>
+      </div>
+
+      <div class="city-chips-wrapper">
+        <div id="gas-cat-bar" class="city-bar"></div>
+      </div>
+
+      <div id="gastos-list" class="finance-list"></div>
       <div id="gastos-subtotais-container"></div>
-
-      <div class="city-filters" id="gas-cat-bar"></div>
-
-      <div class="framed-section">
-        <div class="framed-title">LANÇAMENTO DE GASTOS REAIS</div>
-        <div id="gastos-list" class="list-container"></div>
-      </div>
     </section>
+
   </main>
 
-  <button class="fab" id="fab-btn" onclick="openContextModal()" style="display:none;"><i class="fa-solid fa-plus"></i></button>
-
-  <nav class="bottom-nav" id="bottom-nav" style="display:none;">
-    <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-list-check nav-icon"></i><span>Roteiro</span></button>
-    <button class="nav-item" onclick="switchTab('calendario', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Calendário</span></button>
-    <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
-    <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
+  <!-- Bottom Navigation -->
+  <nav id="bottom-nav" class="bottom-nav" style="display: none;">
+    <button class="nav-item active" onclick="switchTab('roteiro', this)">
+      <i class="fa-regular fa-clock"></i>
+      <span>Roteiro</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('calendario', this)">
+      <i class="fa-regular fa-calendar-days"></i>
+      <span>Calendário</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('orcamento', this)">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Orçamento</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('gastos', this)">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Gastos</span>
+    </button>
   </nav>
 
-  <script src="app.js?v=8.0"></script>
+  <!-- Floating Action Button -->
+  <button id="fab-btn" class="fab-btn" style="display: none;" onclick="openContextModal()">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- MODAL: LOGIN -->
+  <div id="modal-login" class="modal">
+    <div class="modal-content login-box">
+      <h2>Acesso Europa 2027</h2>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="login-email" required placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="login-senha" required placeholder="******">
+        </div>
+        <div id="login-error" class="error-msg" style="display:none;"></div>
+        <button type="submit" class="btn-primary">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ROTEIRO -->
+  <div id="modal-roteiro" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Atração / Item de Roteiro</h3>
+        <button class="close-btn" onclick="closeModal('modal-roteiro')">&times;</button>
+      </div>
+      <form id="form-roteiro" onsubmit="handleRoteiroSubmit(event)">
+        <input type="hidden" id="rot-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Dia / Data</label>
+            <select id="rot-dia" required></select>
+          </div>
+          <div class="form-group">
+            <label>Cidade</label>
+            <select id="rot-cidade" required></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="rot-categoria" required></select>
+          </div>
+          <div class="form-group">
+            <label>Hora</label>
+            <input type="text" id="rot-hora" placeholder="HH:MM" oninput="formatTimeMask(this)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Atração / Título</label>
+          <input type="text" id="rot-atracao" required placeholder="Ex: Museu do Louvre">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Funcionamento</label>
+            <input type="text" id="rot-funcionamento" placeholder="Ex: 09:00 - 18:00">
+          </div>
+          <div class="form-group">
+            <label>Custo Previsto (€)</label>
+            <input type="number" id="rot-custo" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Região / Bairro</label>
+          <input type="text" id="rot-regiao" placeholder="Ex: Centro / 1st Arr.">
+        </div>
+
+        <div class="form-group">
+          <label>Endereço</label>
+          <input type="text" id="rot-endereco" placeholder="Rua / Número">
+        </div>
+
+        <div class="form-group">
+          <label>Link Google Maps / Site</label>
+          <input type="url" id="rot-link" placeholder="https://maps.google.com/...">
+        </div>
+
+        <div class="form-group">
+          <label>Observações</label>
+          <textarea id="rot-obs" rows="2" placeholder="Dicas, ingressos, avisos..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('modal-roteiro')">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ORÇAMENTO -->
+  <div id="modal-orcamento" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Item de Orçamento</h3>
+        <button class="close-btn" onclick="closeModal('modal-orcamento')">&times;</button>
+      </div>
+      <form id="form-orcamento" onsubmit="handleOrcamentoSubmit(event)">
+        <input type="hidden" id="orc-id">
+        <div id="orc-linked-aviso" class="warning-box" style="display:none;">
+          <i class="fa-solid fa-lock"></i> Este item possui gasto real vinculado. Valor, moeda e status são gerenciados pela aba Gastos.
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="orc-cat" required></select>
+          </div>
+          <div class="form-group">
+            <label>Cidade</label>
+            <select id="orc-cidade" required></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Item / Descrição</label>
+          <input type="text" id="orc-item" required placeholder="Ex: Passagem de Trem Paris-Amsterdam">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Status</label>
+            <select id="orc-status" required>
+              <option value="PROJETADO">PROJETADO</option>
+              <option value="A PAGAR">A PAGAR</option>
+              <option value="PAGO">PAGO</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Moeda</label>
+            <select id="orc-moeda" required>
+              <option value="EUR">EUR (€)</option>
+              <option value="BRL">BRL (R$)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Valor Projetado</label>
+          <input type="number" id="orc-proj" step="0.01" required placeholder="0.00">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('modal-orcamento')">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GASTOS -->
+  <div id="modal-gastos" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Lançar Gasto Real</h3>
+        <button class="close-btn" onclick="closeModal('modal-gastos')">&times;</button>
+      </div>
+      <form id="form-gastos" onsubmit="handleGastosSubmit(event)">
+        <input type="hidden" id="gas-id">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data</label>
+            <input type="date" id="gas-data" required>
+          </div>
+          <div class="form-group">
+            <label>Cidade</label>
+            <select id="gas-cidade" required onchange="refreshVinculoOptions()"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="gas-cat" required onchange="refreshVinculoOptions()"></select>
+          </div>
+          <div class="form-group">
+            <label>Moeda</label>
+            <select id="gas-moeda" required>
+              <option value="EUR">EUR (€)</option>
+              <option value="BRL">BRL (R$)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Vincular ao Orçamento (Opcional)</label>
+          <select id="gas-orcamento">
+            <option value="">Nenhum (gasto avulso)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Item / Descrição</label>
+          <input type="text" id="gas-item" required placeholder="Ex: Almoço no Bistro Paris">
+        </div>
+
+        <div class="form-group">
+          <label>Valor Pago</label>
+          <input type="number" id="gas-valor" step="0.01" required placeholder="0.00">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('modal-gastos')">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPORTAR EXCEL -->
+  <div id="modal-importar" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Importar Dados do Excel</h3>
+        <button class="close-btn" onclick="closeModal('modal-importar')">&times;</button>
+      </div>
+      <div id="import-preview-body" class="import-preview"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-importar')">Cancelar</button>
+        <button id="btn-confirmar-importacao" type="button" class="btn-primary" onclick="confirmarImportacao()" style="display:none;">Confirmar Importação</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
