@@ -46,7 +46,6 @@ function normalizeStr(str) {
 }
 
 // Mostra um alerta amigável quando uma operação no Supabase falha.
-// Retorna true se HOUVE erro (para o código chamador poder abortar o fluxo).
 function checkError(error, contexto) {
   if (error) {
     console.error(`[Supabase] Erro ao ${contexto}:`, error);
@@ -129,12 +128,9 @@ async function loadAllData(isFirstLoad = false) {
   const { data: orc, error: errOrc } = await _supabase.from('orcamento').select('*');
   const { data: gas, error: errGas } = await _supabase.from('gastos').select('*');
 
-  const houveErro = checkError(errRot, 'carregar o roteiro')
-    || checkError(errOrc, 'carregar o orçamento')
-    || checkError(errGas, 'carregar os gastos');
-  if (houveErro) {
-    // Mesmo com erro, seguimos com o que veio (arrays vazios) para não travar a tela.
-  }
+  checkError(errRot, 'carregar o roteiro');
+  checkError(errOrc, 'carregar o orçamento');
+  checkError(errGas, 'carregar os gastos');
 
   roteiroData = rot || [];
   orcamentoData = (orc || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
@@ -212,9 +208,6 @@ function populateSelects() {
   refreshVinculoOptions();
 }
 
-// Filtra o dropdown "Vincular a item do orçamento" pela Categoria e Cidade
-// já escolhidas no próprio formulário de gasto — assim a lista nunca mostra
-// os 40+ itens de uma vez, só os candidatos que fazem sentido.
 function refreshVinculoOptions() {
   const gasOrc = document.getElementById("gas-orcamento");
   const gasCat = document.getElementById("gas-cat");
@@ -239,7 +232,6 @@ function refreshVinculoOptions() {
   });
   gasOrc.innerHTML = opts;
 
-  // Mantém a seleção anterior se ela ainda estiver entre os candidatos filtrados.
   if ([...gasOrc.options].some(op => op.value === valorAnterior)) {
     gasOrc.value = valorAnterior;
   }
@@ -336,11 +328,11 @@ async function toggleDone(id) {
   if(item) { 
     const novoValor = !item.feito;
     item.feito = novoValor;
-    renderTimeline(); // feedback visual imediato
+    renderTimeline();
 
     const { error } = await _supabase.from('roteiro').update({ feito: novoValor }).eq('id', id);
     if (checkError(error, 'salvar o check deste item')) {
-      item.feito = !novoValor; // reverte se a gravação falhou
+      item.feito = !novoValor;
       renderTimeline();
     }
   }
@@ -348,7 +340,7 @@ async function toggleDone(id) {
 
 async function deleteItem(id, type) {
   if (type === 'orcamento' && isOrcamentoLinked(id)) {
-    alert("Este item já tem um gasto real vinculado.\n\nExclua o gasto correspondente na aba Gastos primeiro — isso desvincula automaticamente e o item de orçamento volta a ficar editável.");
+    alert("Este item já tem um gasto real vinculado.\n\nExclua o gasto correspondente na aba Gastos primeiro.");
     return;
   }
   if(!confirm("Tem certeza que deseja excluir?")) return;
@@ -357,11 +349,13 @@ async function deleteItem(id, type) {
   await loadAllData(false);
 }
 
+// Lógica de abertura do Google Maps (Direct Link + Fallback inteligente)
 function openMaps(link, atracao, endereco) {
   if (link && link.trim().startsWith("http")) {
     window.open(link.trim(), '_blank');
   } else if (atracao) {
-    const query = encodeURIComponent(`${atracao} ${endereco || ''}`);
+    const busca = `${atracao} ${endereco || ''}`.trim();
+    const query = encodeURIComponent(busca);
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   }
 }
@@ -424,8 +418,12 @@ function renderTimeline() {
 
     const isFeito = item.feito ? 'feito' : '';
     const btnFeitoClass = item.feito ? 'active' : '';
-    const hasMapsLink = item.link && item.link.trim().startsWith("http");
     const horaStr = item.hora ? item.hora.trim() : "--:--";
+
+    // Tratamento contra aspas para proteger a execução de funções inline no HTML
+    const linkSafe = (item.link || '').replace(/'/g, "\\'");
+    const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
+    const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
 
     container.innerHTML += `
       <div class="card ${isFeito}" data-id="${item.id}">
@@ -446,7 +444,7 @@ function renderTimeline() {
             <div class="card-actions">
               <div class="action-group">
                  <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-                 ${hasMapsLink ? `<button class="btn-act" onclick="openMaps('${item.link.trim()}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>` : ''}
+                 <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>
                  <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
                  <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                  <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -457,7 +455,7 @@ function renderTimeline() {
       </div>`;
   });
 
-if (sortableInstance) {
+  if (sortableInstance) {
     sortableInstance.destroy();
     sortableInstance = null;
   }
@@ -482,7 +480,7 @@ if (sortableInstance) {
       }
       if (houveErro) {
         checkError({ message: 'uma ou mais posições podem não ter sido salvas' }, 'salvar a nova ordem');
-        await loadAllData(false); // ressincroniza com o banco em caso de falha parcial
+        await loadAllData(false);
       }
     }
   });
@@ -517,7 +515,7 @@ async function handleRoteiroSubmit(e) {
     ({ error } = await _supabase.from('roteiro').insert([payload]));
   }
 
-  if (checkError(error, 'salvar esta atração')) return; // mantém o modal aberto com os dados preenchidos
+  if (checkError(error, 'salvar esta atração')) return;
 
   closeModal('modal-roteiro'); 
   await loadAllData(false);
@@ -527,7 +525,6 @@ function updateEuro(origemId) {
   const idUsado = origemId || "euro-input";
   euroMedio = parseFloat(document.getElementById(idUsado).value) || 5.98;
 
-  // Mesmo valor nas duas abas — sincroniza o campo que não foi editado agora.
   const idOutro = idUsado === "euro-input" ? "euro-input-gastos" : "euro-input";
   const outroEl = document.getElementById(idOutro);
   if (outroEl) outroEl.value = euroMedio;
@@ -553,7 +550,6 @@ function renderOrcamento() {
   });
 
   let efetivoOrcamentoPagos = 0;
-
   const orderMap = { "PAGO": 1, "A PAGAR": 2, "PROJETADO": 3 };
 
   let processedOrcamento = orcamentoData.map(item => {
@@ -566,8 +562,6 @@ function renderOrcamento() {
     if (!catTotals[catName]) catTotals[catName] = { proj: 0, efet: 0 };
     catTotals[catName].proj += projEur;
 
-    // Vínculo real (FK), não mais por comparação de texto.
-    // Pode haver mais de um gasto vinculado ao mesmo item (ex.: hotel pago em 2 parcelas).
     let gastosVinculados = gastosData.filter(g => g.orcamento_id === item.id);
     let isLinked = gastosVinculados.length > 0;
     let cidadesGastosVinculados = [...new Set(gastosVinculados.map(g => (g.cidade || '').trim().toUpperCase()).filter(Boolean))];
@@ -586,7 +580,6 @@ function renderOrcamento() {
       statusColor = "#059669";
       catTotals[catName].efet += somaVinculada;
     } else if (item.status === "PAGO") {
-      // Legado: status "PAGO" definido manualmente antes desta mudança, sem gasto real vinculado ainda.
       statusColor = "#059669";
       efetivoOrcamentoPagos += projEur;
       catTotals[catName].efet += projEur;
@@ -601,7 +594,6 @@ function renderOrcamento() {
 
   processedOrcamento.sort((a, b) => a.sortWeight - b.sortWeight);
 
-  // ---- Lista visual: filtrada por cidade (chips) e agrupada por Categoria > Cidade ----
   const listaFiltrada = currentOrcCityFilter === "TODAS"
     ? processedOrcamento
     : processedOrcamento.filter(i => i.cidadeName === currentOrcCityFilter);
@@ -643,7 +635,6 @@ function renderOrcamento() {
     const subProj = itensCategoria.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
     const subEfet = itensCategoria.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
 
-    // Ordem: status (pago/projetado/a pagar) primeiro; dentro do mesmo status, pela ordem das cidades no roteiro.
     const itensOrdenados = [...itensCategoria].sort((a, b) => {
       if (a.sortWeight !== b.sortWeight) return a.sortWeight - b.sortWeight;
       const ia = CIDADES_FIXAS.indexOf(a.cidadeName), ib = CIDADES_FIXAS.indexOf(b.cidadeName);
@@ -652,7 +643,6 @@ function renderOrcamento() {
 
     let bodyHtml = itensOrdenados.map(item => renderOrcamentoItemHtml(item)).join('');
 
-    // Referência do Roteiro: uma dica por cidade presente nesta categoria (a cidade já vai no texto).
     const cidadesPresentes = [...new Set(itensCategoria.map(i => i.cidadeName))].sort(ordenarPorListaFixa(CIDADES_FIXAS));
     cidadesPresentes.forEach(cid => {
       const ref = getReferenciaRoteiro(cat, cid);
@@ -680,7 +670,6 @@ function renderOrcamento() {
 
   container.innerHTML = listHtml || `<div style="text-align:center; color:var(--text-muted); padding:24px 0;">Nenhum item de orçamento para esta cidade.</div>`;
 
-  // ---- Métricas e resumo por categoria: sempre considerando TODOS os itens (não filtrados) ----
   for (const [catName, val] of Object.entries(catTotals)) {
     let catNorm = normalizeStr(catName);
     if (val.efet === 0 && gastosPorCat[catNorm]) val.efet = gastosPorCat[catNorm];
@@ -700,8 +689,6 @@ function renderOrcamento() {
   renderOrcamentoCityChips();
 }
 
-// Soma os custos já lançados no Roteiro para uma combinação Categoria(financeira)+Cidade.
-// É só uma referência informativa — nunca entra na soma de Projetado/Efetivado.
 function getReferenciaRoteiro(categoriaFinanceira, cidade) {
   let total = 0;
   let nomes = [];
@@ -723,17 +710,16 @@ function getReferenciaRoteiro(categoriaFinanceira, cidade) {
 function renderOrcamentoItemHtml(item) {
   let displayValBrl = item.displayValEur * euroMedio;
   const excluirOuCadeado = item.isLinked
-    ? `<span title="Vinculado a um gasto real — exclua o gasto na aba Gastos pra desvincular" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
+    ? `<span title="Vinculado a um gasto real" style="color:var(--text-muted); font-size:0.75rem; padding:4px 6px;"><i class="fa-solid fa-lock"></i></span>`
     : `<button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'orcamento')" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
   const acoes = `<button class="btn-act" onclick="editOrcamento(${item.id})" style="width:28px; height:28px; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
     ${excluirOuCadeado}`;
 
   const cidadeLabel = item.cidadeName.charAt(0) + item.cidadeName.slice(1).toLowerCase();
 
-  // GERAL mas o(s) gasto(s) vinculado(s) são de uma cidade específica: provável cidade desatualizada.
   const divergeCidade = item.cidadeName === 'GERAL' && item.cidadesGastosVinculados.length > 0 && !item.cidadesGastosVinculados.includes('GERAL');
   const avisoCidade = divergeCidade
-    ? `<div style="margin-top:3px; font-size:0.7rem; color:#d97706;" title="Ajuste a Cidade deste item de orçamento"><i class="fa-solid fa-triangle-exclamation"></i> gasto real é de ${item.cidadesGastosVinculados.join('/')} </div>`
+    ? `<div style="margin-top:3px; font-size:0.7rem; color:#d97706;" title="Ajuste a Cidade deste item"><i class="fa-solid fa-triangle-exclamation"></i> gasto real é de ${item.cidadesGastosVinculados.join('/')} </div>`
     : '';
 
   return `
@@ -815,8 +801,6 @@ function editOrcamento(id) {
   let valDisplay = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
   document.getElementById("orc-proj").value = parseFloat(valDisplay).toFixed(2);
 
-  // Categoria/Cidade/Item continuam editáveis mesmo com gasto vinculado (são só organização).
-  // Status/Moeda/Valor ficam travados porque, uma vez vinculado, quem manda no valor é o gasto real.
   ["orc-status", "orc-moeda", "orc-proj"].forEach(fieldId => {
     document.getElementById(fieldId).disabled = linked;
   });
@@ -871,7 +855,6 @@ function renderGastos() {
   container.innerHTML = "";
   let catGastos = {};
 
-  // Subtotais por categoria sempre consideram TODOS os gastos, independente do filtro da lista abaixo.
   let totalGeralEur = 0;
   gastosData.forEach(g => {
     let valEur = g.moeda === "BRL" ? (parseFloat(g.valor_brl) / euroMedio) : parseFloat(g.valor_eur);
@@ -891,7 +874,7 @@ function renderGastos() {
     : gastosData.filter(g => (g.categoria || '').trim().toUpperCase() === currentGasCatFilter);
 
   const gastosOrdenados = [...gastosFiltrados].sort((a, b) => {
-    if (!a.data) return 1;   // sem data vai pro fim
+    if (!a.data) return 1;
     if (!b.data) return -1;
     return new Date(a.data) - new Date(b.data);
   });
@@ -1024,8 +1007,6 @@ function exportToXLSX() {
 }
 
 // ===================== IMPORTAR EXCEL =====================
-// Só insere linhas cuja coluna "id" está vazia (ou seja, novas — nunca existiram no Supabase).
-// Linhas com "id" preenchido são ignoradas (já vieram de uma exportação anterior).
 
 const DIAS_SEMANA_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
@@ -1227,7 +1208,7 @@ function processarAba(workbook, nomesAceitos, aliasMap, converterLinha, resultad
   linhas.forEach((row, idx) => {
     const numeroLinha = idx + 2;
     const idVal = campos.id ? row[campos.id] : null;
-    if (!linhaEstaVazia(idVal)) return; // já existe no Supabase — pula
+    if (!linhaEstaVazia(idVal)) return;
 
     const todaVazia = Object.values(row).every(linhaEstaVazia);
     if (todaVazia) return;
@@ -1280,7 +1261,7 @@ function renderImportPreview(resultado) {
   html += `<div style="margin-bottom:12px;">${linhaResumo('Roteiro', resultado.roteiro)}${linhaResumo('Orçamento', resultado.orcamento)}${linhaResumo('Gastos', resultado.gastos)}</div>`;
 
   if (totalNovas === 0) {
-    html += `<p style="color:var(--text-muted); font-size:0.85rem;">Nenhuma linha nova encontrada (tudo já tem "id" preenchido, ou nenhuma aba foi reconhecida).</p>`;
+    html += `<p style="color:var(--text-muted); font-size:0.85rem;">Nenhuma linha nova encontrada.</p>`;
   } else {
     const preview = (arr, campos) => arr.slice(0, 3).map(r => `<div style="font-size:0.75rem; color:var(--text-muted); padding:4px 0; border-bottom:1px dashed var(--border-color);">${campos.map(c => r[c]).filter(Boolean).join(' • ')}</div>`).join('');
     if (resultado.roteiro.length) html += `<div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; margin-top:10px; color:var(--text-muted);">Prévia Roteiro (${resultado.roteiro.length})</div>${preview(resultado.roteiro, ['dia', 'atracao', 'cidade'])}`;
