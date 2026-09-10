@@ -28,7 +28,7 @@ const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
   'MUSEU': 'INGRESSOS',
   'PARQUE': 'INGRESSOS',
   'DESTAQUE': 'OUTROS',
-  'MARCO': 'OUTROS', // valor legado de categoria, tratado como DESTAQUE
+  'MARCO': 'OUTROS',
   'RESTAURANTE': 'ALIMENTAÇÃO',
   'LOJA': 'COMPRAS',
   'HOTEL': 'HOTEL',
@@ -45,7 +45,6 @@ function normalizeStr(str) {
   return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// Mostra um alerta amigável quando uma operação no Supabase falha.
 function checkError(error, contexto) {
   if (error) {
     console.error(`[Supabase] Erro ao ${contexto}:`, error);
@@ -146,6 +145,7 @@ async function loadAllData(isFirstLoad = false) {
   renderTimeline();
   renderOrcamento();
   renderGastos();
+  renderCalendario();
 }
 
 function formatDayLabel(dayStr) {
@@ -242,6 +242,7 @@ function switchTab(tabName, btn) {
   document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   document.getElementById(`tab-${tabName}`).classList.add("active");
+  if (tabName === "calendario") renderCalendario();
   btn.classList.add("active");
 }
 
@@ -349,7 +350,6 @@ async function deleteItem(id, type) {
   await loadAllData(false);
 }
 
-// Lógica de abertura do Google Maps (Direct Link + Fallback inteligente)
 function openMaps(link, atracao, endereco) {
   if (link && link.trim().startsWith("http")) {
     window.open(link.trim(), '_blank');
@@ -420,7 +420,6 @@ function renderTimeline() {
     const btnFeitoClass = item.feito ? 'active' : '';
     const horaStr = item.hora ? item.hora.trim() : "--:--";
 
-    // Tratamento contra aspas para proteger a execução de funções inline no HTML
     const linkSafe = (item.link || '').replace(/'/g, "\\'");
     const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
     const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
@@ -530,6 +529,7 @@ function updateEuro(origemId) {
   if (outroEl) outroEl.value = euroMedio;
 
   renderOrcamento(); renderGastos();
+  renderCalendario();
 }
 
 function renderOrcamento() {
@@ -945,6 +945,7 @@ function renderGastosCatChips() {
 function filterGastosCat(cat) {
   currentGasCatFilter = cat;
   renderGastos();
+  renderCalendario();
 }
 
 function editGasto(id) {
@@ -1294,6 +1295,73 @@ async function confirmarImportacao() {
   alert(relatorio.join('\n'));
 }
 
+function renderCalendario() {
+  const container = document.getElementById("calendar-grid-container");
+  if (!container) return;
+
+  const diasSemana = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
+  let html = diasSemana.map(d => `<div class="cal-day-header">${d.slice(0, 3)}</div>`).join("");
+
+  const datasEspeciais = {
+    17: "PENTECOSTES",
+    18: "ALICE",
+    27: "CORPUS CHRISTI",
+    28: "WILLIAM"
+  };
+
+  const diasMap = {};
+  roteiroData.forEach(item => {
+    if (!item.dia) return;
+    const match = item.dia.match(/^(\d{1,2})\/(\d{1,2})/);
+    if (!match) return;
+    const diaNum = parseInt(match[1]);
+
+    if (!diasMap[diaNum]) diasMap[diaNum] = { cidades: new Set(), deslocamentos: [] };
+
+    if (item.cidade) diasMap[diaNum].cidades.add(item.cidade.toUpperCase());
+
+    if (["ESTAÇÃO", "TREM", "AEROPORTO"].includes(item.categoria)) {
+      const horaStr = item.hora ? item.hora.trim() : "";
+      diasMap[diaNum].deslocamentos.push({ hora: horaStr, atracao: item.atracao, cidade: item.cidade });
+    }
+  });
+
+  for (let i = 0; i < 6; i++) {
+    html += `<div class="cal-cell empty"></div>`;
+  }
+
+  for (let dia = 1; dia <= 31; dia++) {
+    const dados = diasMap[dia];
+    let conteudo = "";
+
+    if (datasEspeciais[dia]) {
+      conteudo += `<div class="cal-evento-badge">${datasEspeciais[dia]}</div>`;
+    }
+
+    if (dados) {
+      if (dados.deslocamentos.length > 0) {
+        dados.deslocamentos.forEach(d => {
+          conteudo += `<div class="cal-migracao-badge"><i class="fa-solid fa-plane-departure" style="font-size:0.55rem;"></i> ${d.hora} ${d.atracao}</div>`;
+        });
+      } else {
+        const cidadesArr = Array.from(dados.cidades);
+        if (cidadesArr.length > 0) {
+          conteudo += `<div class="cal-cidade-badge">${cidadesArr.join(" / ")}</div>`;
+        }
+      }
+    }
+
+    html += `
+      <div class="cal-cell">
+        <div class="cal-num">${dia}</div>
+        <div class="cal-body">${conteudo}</div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+window.renderCalendario = renderCalendario;
 window.openContextModal = openContextModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
