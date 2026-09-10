@@ -718,16 +718,10 @@ body {
   color: var(--text-muted);
 }
 
-.calendar-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  min-width: 320px;
 }
 
 .cal-day-header {

@@ -23,7 +23,6 @@ const CIDADES_FIXAS = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARI
 const CATEGORIAS_ROTEIRO = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
 const CATEGORIAS_FINANCEIRO = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
 
-// Usado só pra mostrar uma referência informativa (não soma automático no orçamento).
 const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
   'MUSEU': 'INGRESSOS',
   'PARQUE': 'INGRESSOS',
@@ -42,7 +41,7 @@ let currentGasCatFilter = "TODAS";
 
 function normalizeStr(str) {
   if (!str) return "";
-  return str.toString().trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function checkError(error, contexto) {
@@ -1050,7 +1049,7 @@ const ALIASES_GASTOS = {
 };
 
 function normalizeHeader(str) {
-  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 function linhaEstaVazia(valor) {
@@ -1299,18 +1298,6 @@ function renderCalendario() {
   const container = document.getElementById("calendar-grid-container");
   if (!container) return;
 
-  const MAPA_ABREV = {
-    "AMSTERDAM": "AMS",
-    "BRUXELAS": "BRUX",
-    "GENT": "GENT",
-    "BRUGES": "BRUG",
-    "ROTERDAM": "ROT",
-    "HAIA": "HAIA",
-    "DELFT": "DELFT",
-    "PARIS": "PARIS",
-    "GERAL": "GERAL"
-  };
-
   const diasSemana = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
   let html = diasSemana.map(d => `<div class="cal-day-header">${d.slice(0, 3)}</div>`).join("");
 
@@ -1330,20 +1317,11 @@ function renderCalendario() {
 
     if (!diasMap[diaNum]) diasMap[diaNum] = { cidades: new Set(), deslocamentos: [] };
 
-    if (item.cidade) {
-      const cidUpper = item.cidade.toUpperCase();
-      diasMap[diaNum].cidades.add(MAPA_ABREV[cidUpper] || cidUpper);
-    }
+    if (item.cidade) diasMap[diaNum].cidades.add(item.cidade.toUpperCase());
 
     if (["ESTAÇÃO", "TREM", "AEROPORTO"].includes(item.categoria)) {
       const horaStr = item.hora ? item.hora.trim() : "";
-      const isVoo = item.categoria === "AEROPORTO";
-      diasMap[diaNum].deslocamentos.push({ 
-        hora: horaStr, 
-        atracao: item.atracao, 
-        cidade: item.cidade,
-        isVoo: isVoo 
-      });
+      diasMap[diaNum].deslocamentos.push(`${horaStr} ${item.atracao}`.trim());
     }
   });
 
@@ -1360,16 +1338,15 @@ function renderCalendario() {
     }
 
     if (dados) {
+      if (dados.deslocamentos.length > 0) {
+        dados.deslocamentos.forEach(d => {
+          conteudo += `<div class="cal-migracao-badge"><i class="fa-solid fa-plane-departure" style="font-size:0.6rem;"></i> ${d}</div>`;
+        });
+      }
+
       const cidadesArr = Array.from(dados.cidades);
       if (cidadesArr.length > 0) {
         conteudo += `<div class="cal-cidade-badge">${cidadesArr.join(" / ")}</div>`;
-      }
-
-      if (dados.deslocamentos.length > 0) {
-        dados.deslocamentos.forEach(d => {
-          const iconClass = d.isVoo ? "fa-plane-departure" : "fa-train";
-          conteudo += `<div class="cal-migracao-badge"><i class="fa-solid ${iconClass}" style="font-size:0.6rem;"></i> ${d.hora} ${d.atracao}</div>`;
-        });
       }
     }
 
