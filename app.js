@@ -144,6 +144,7 @@ async function loadAllData(isFirstLoad = false) {
   renderDaysCarousel();
   renderCityChips();
   renderTimeline();
+  renderCalendario();
   renderOrcamento();
   renderGastos();
 }
@@ -360,6 +361,32 @@ function openMaps(link, atracao, endereco) {
   }
 }
 
+// Monta uma rota no Google Maps com todas as paradas do dia selecionado, na ordem do roteiro.
+// Usa nome + endereço de cada parada (não o link salvo) — é o jeito confiável de funcionar
+// com qualquer atração, já que um link de Maps individual não dá pra "encadear" em rota.
+function abrirRotasDoDia() {
+  let itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay);
+  itensDoDia.sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+
+  const paradas = itensDoDia
+    .map(i => `${(i.atracao || '').trim()} ${(i.endereco || i.regiao || '').trim()}`.trim())
+    .filter(Boolean);
+
+  if (paradas.length < 2) {
+    alert('Esse dia não tem paradas suficientes pra montar uma rota (precisa de pelo menos 2 com nome preenchido).');
+    return;
+  }
+
+  const origem = encodeURIComponent(paradas[0]);
+  const destino = encodeURIComponent(paradas[paradas.length - 1]);
+  const meio = paradas.slice(1, -1).map(p => encodeURIComponent(p)).join('|');
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origem}&destination=${destino}&travelmode=walking`;
+  if (meio) url += `&waypoints=${meio}`;
+
+  window.open(url, '_blank');
+}
+
 function editRoteiro(id) {
   const item = roteiroData.find(i => i.id === id);
   if(!item) return;
@@ -484,6 +511,126 @@ function renderTimeline() {
       }
     }
   });
+}
+
+// ===================== CALENDÁRIO (cidades e migrações) =====================
+// Deriva tudo a partir do próprio Roteiro (dia, cidade, hora, ordem, categoria) —
+// não é uma tabela separada, então não precisa de manutenção dupla.
+
+const ABREV_CIDADES = {
+  'GERAL': 'GERAL', 'AMSTERDAM': 'AMS', 'BRUXELAS': 'BRUX', 'GENT': 'GENT',
+  'BRUGES': 'BRUG', 'PARIS': 'PARIS', 'ROTERDAM': 'ROT', 'DELFT': 'DELFT', 'HAIA': 'HAIA'
+};
+
+// Assume ano 2027 (o campo "dia" do roteiro só guarda dia/mês — app é o "Europa 2027").
+const CALENDARIO_ANO = 2027;
+
+function construirDadosCalendario() {
+  const diasMap = {};
+  roteiroData.forEach(item => {
+    if (!item.dia) return;
+    if (!diasMap[item.dia]) diasMap[item.dia] = [];
+    diasMap[item.dia].push(item);
+  });
+
+  const diasOrdenados = Object.keys(diasMap).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+  let cidadeAnterior = null;
+  const porDia = {}; // "DD/MM" -> [{hora, cidade, icone}]
+
+  diasOrdenados.forEach(diaStr => {
+    const itens = [...diasMap[diaStr]].sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+
+    // Agrupa os itens do dia em "blocos" por cidade consecutiva (voo/trem viram um bloco especial).
+    const blocos = [];
+    itens.forEach(item => {
+      let cid = (item.cidade || '').trim().toUpperCase();
+      if (!cid) return;
+      let rotulo = cid, icone = 'fa-train', chave = cid;
+      if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; chave = '__VOO__'; }
+      else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; chave = '__TREM__'; }
+      else if (item.categoria === 'AEROPORTO') { icone = 'fa-plane'; }
+
+      const ultimo = blocos[blocos.length - 1];
+      if (ultimo && ultimo.chave === chave) return; // mesmo bloco, ignora repetição
+      blocos.push({ chave, rotulo, icone, hora: item.hora || '' });
+    });
+
+    let segmentos = [];
+    if (blocos.length === 1 && blocos[0].chave === cidadeAnterior) {
+      // Dia parado: só continua na mesma cidade de ontem — sem hora/ícone.
+      segmentos.push({ hora: '', cidade: blocos[0].rotulo, icone: null });
+    } else if (blocos.length > 0) {
+      // Dia com transição (uma ou mais pernas) — mostra todas.
+      segmentos = blocos.map(b => ({ hora: b.hora, cidade: b.rotulo, icone: b.icone }));
+    }
+
+    const m = diaStr.match(/(\d{2})\/(\d{2})/);
+    if (m) porDia[`${m[1]}/${m[2]}`] = segmentos;
+
+    if (blocos.length > 0) {
+      const ultimoBloco = blocos[blocos.length - 1];
+      if (ultimoBloco.chave !== '__VOO__' && ultimoBloco.chave !== '__TREM__') cidadeAnterior = ultimoBloco.chave;
+    }
+  });
+
+  return porDia;
+}
+
+function renderCalendario() {
+  const container = document.getElementById("calendario-container");
+  if (!container) return;
+
+  const dadosPorDia = construirDadosCalendario();
+
+  // Descobre quais meses aparecem no roteiro, em ordem cronológica.
+  const mesesPresentes = [...new Set(roteiroData.filter(i => i.dia).map(i => {
+    const m = i.dia.match(/\d{2}\/(\d{2})/);
+    return m ? parseInt(m[1]) : null;
+  }).filter(Boolean))].sort((a, b) => a - b);
+
+  if (mesesPresentes.length === 0) {
+    container.innerHTML = `<p style="color:var(--text-muted); text-align:center; padding:24px 0;">Sem dados de roteiro ainda.</p>`;
+    return;
+  }
+
+  const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const NOMES_DIA_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  let html = '';
+  mesesPresentes.forEach(mes => {
+    const primeiroDiaSemana = new Date(CALENDARIO_ANO, mes - 1, 1).getDay();
+    const diasNoMes = new Date(CALENDARIO_ANO, mes, 0).getDate();
+
+    html += `<div class="cal-month-title">${NOMES_MES[mes - 1]} / ${CALENDARIO_ANO}</div>`;
+    html += `<div class="cal-grid">`;
+    NOMES_DIA_SEMANA.forEach(d => { html += `<div class="cal-weekday">${d}</div>`; });
+
+    for (let i = 0; i < primeiroDiaSemana; i++) html += `<div class="cal-day-cell empty"></div>`;
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+      const chave = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+      const segmentos = dadosPorDia[chave];
+
+      let conteudo = '';
+      if (segmentos && segmentos.length > 0) {
+        conteudo = segmentos.map(seg => {
+          if (!seg.icone) {
+            return `<span class="cal-parado">${ABREV_CIDADES[seg.cidade] || seg.cidade}</span>`;
+          }
+          return `<div class="cal-segment">
+            <span class="cal-hora"><i class="fa-solid ${seg.icone}"></i>${seg.hora || ''}</span>
+            <span class="cal-cidade">${ABREV_CIDADES[seg.cidade] || seg.cidade}</span>
+          </div>`;
+        }).join('');
+      }
+
+      html += `<div class="cal-day-cell"><span class="cal-day-num">${dia}</span>${conteudo}</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
 }
 
 async function handleRoteiroSubmit(e) {
@@ -1318,3 +1465,4 @@ window.filterGastosCat = filterGastosCat;
 window.refreshVinculoOptions = refreshVinculoOptions;
 window.handleImportFile = handleImportFile;
 window.confirmarImportacao = confirmarImportacao;
+window.abrirRotasDoDia = abrirRotasDoDia;

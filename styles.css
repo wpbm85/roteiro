@@ -474,3 +474,41 @@ header {
   cursor: pointer;
   margin-top: 10px;
 }
+
+.cal-month-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 4px 0 8px;
+  text-align: center;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 20px;
+}
+.cal-weekday {
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  padding: 2px 0 6px;
+  text-transform: uppercase;
+}
+.cal-day-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  min-height: 58px;
+  padding: 3px 2px;
+  overflow: hidden;
+}
+.cal-day-cell.empty { background: transparent; border-color: transparent; }
+.cal-day-num { font-weight: 700; color: var(--text-muted); font-size: 0.62rem; display: block; }
+.cal-segment { margin-top: 2px; line-height: 1.15; text-align: center; }
+.cal-segment .cal-hora { color: var(--text-muted); font-size: 0.52rem; display: block; }
+.cal-segment .cal-cidade { font-weight: 800; font-size: 0.6rem; display: block; }
+.cal-segment i { font-size: 0.5rem; margin-right: 1px; color: var(--accent-blue); }
+.cal-day-cell .cal-parado { font-weight: 800; font-size: 0.62rem; display: block; text-align: center; margin-top: 10px; }

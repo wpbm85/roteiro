@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=7.6">
+  <link rel="stylesheet" href="styles.css?v=7.7">
 </head>
 <body>
 
@@ -68,9 +68,14 @@
       <div class="filter-toggles">
         <button class="toggle-btn active" id="btn-ver-tudo" onclick="setDoneFilter('ALL')">Ver Tudo</button>
         <button class="toggle-btn" id="btn-ver-falta" onclick="setDoneFilter('PENDING')">O Que Falta</button>
+        <button class="toggle-btn" onclick="abrirRotasDoDia()"><i class="fa-solid fa-route"></i> Rotas</button>
       </div>
       
       <div id="timeline-container"></div>
+    </section>
+
+    <section id="tab-calendario" class="tab-content">
+      <div id="calendario-container"></div>
     </section>
 
     <section id="tab-orcamento" class="tab-content">
@@ -240,11 +245,12 @@
   </div>
 
   <nav class="bottom-nav" id="bottom-nav" style="display:none;">
-    <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Roteiro</span></button>
+    <button class="nav-item active" onclick="switchTab('roteiro', this)"><i class="fa-regular fa-clock nav-icon"></i><span>Roteiro</span></button>
+    <button class="nav-item" onclick="switchTab('calendario', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Calendário</span></button>
     <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=7.9"></script>
+  <script src="app.js?v=8.0"></script>
 </body>
 </html>
