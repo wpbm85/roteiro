@@ -250,6 +250,18 @@ function openContextModal() {
   if (currentTab === 'roteiro') {
     document.getElementById("rot-id").value = "";
     document.getElementById("form-roteiro").reset();
+
+    if (currentSelectedDay) document.getElementById("rot-dia").value = currentSelectedDay;
+
+    let cidadeSugerida = "";
+    if (currentFilter && currentFilter !== "TODAS") {
+      cidadeSugerida = currentFilter;
+    } else {
+      const itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay).sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+      if (itensDoDia.length > 0) cidadeSugerida = itensDoDia[itensDoDia.length - 1].cidade || "";
+    }
+    if (cidadeSugerida) document.getElementById("rot-cidade").value = cidadeSugerida;
+
     document.getElementById("modal-roteiro").classList.add("active");
   } else if (currentTab === 'orcamento') {
     document.getElementById("orc-id").value = "";
