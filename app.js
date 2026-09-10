@@ -588,6 +588,18 @@ function construirDadosCalendario() {
   return porDia;
 }
 
+// Clicar num dia do calendário leva direto pra aquele dia na aba Roteiro.
+function irParaDiaNoRoteiro(chaveDDMM) {
+  const itemDoDia = roteiroData.find(i => i.dia && i.dia.startsWith(chaveDDMM));
+  if (!itemDoDia) return;
+
+  currentSelectedDay = itemDoDia.dia;
+  switchTab('roteiro', document.getElementById('nav-btn-roteiro'));
+  renderDaysCarousel();
+  renderCityChips();
+  renderTimeline();
+}
+
 function renderCalendario() {
   const container = document.getElementById("calendario-container");
   if (!container) return;
@@ -656,7 +668,9 @@ function renderCalendario() {
         ? `<div class="cal-destaque" title="${destaques.join(', ')}">★ ${destaques[0]}${destaques.length > 1 ? ` +${destaques.length - 1}` : ''}</div>`
         : '';
 
-      html += `<div class="cal-day-cell"><span class="cal-day-num">${dia}</span>${conteudo}${destaqueHtml}${eventoHtml}</div>`;
+      const temDados = segmentos && segmentos.length > 0;
+      const clickAttr = temDados ? ` onclick="irParaDiaNoRoteiro('${chave}')" style="cursor:pointer;"` : '';
+      html += `<div class="cal-day-cell"${clickAttr}><span class="cal-day-num">${dia}</span>${conteudo}${destaqueHtml}${eventoHtml}</div>`;
     }
 
     html += `</div>`;
@@ -1499,3 +1513,4 @@ window.refreshVinculoOptions = refreshVinculoOptions;
 window.handleImportFile = handleImportFile;
 window.confirmarImportacao = confirmarImportacao;
 window.abrirRotasDoDia = abrirRotasDoDia;
+window.irParaDiaNoRoteiro = irParaDiaNoRoteiro;
