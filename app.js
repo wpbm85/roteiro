@@ -402,6 +402,7 @@ function editRoteiro(id) {
   document.getElementById("rot-custo").value = item.custo || "";
   document.getElementById("rot-link").value = item.link || "";
   document.getElementById("rot-obs").value = item.obs || "";
+  document.getElementById("rot-destaque-calendario").checked = !!item.destaque_calendario;
   document.getElementById("modal-roteiro").classList.add("active");
 }
 
@@ -593,12 +594,11 @@ function renderCalendario() {
 
   const dadosPorDia = construirDadosCalendario();
 
-  // Destaques (Disney, Versalhes etc.) — puxados ao vivo do roteiro, então se a data mudar lá, muda aqui também.
+  // Destaques (Disney, Versalhes etc.) — só os marcados com o checkbox "Destacar no Calendário",
+  // puxados ao vivo do roteiro (se a data do item mudar lá, muda aqui também).
   const destaquesPorDia = {};
   roteiroData.forEach(item => {
-    if (!item.dia) return;
-    const cat = item.categoria === 'MARCO' ? 'DESTAQUE' : item.categoria;
-    if (cat !== 'DESTAQUE') return;
+    if (!item.dia || !item.destaque_calendario) return;
     const m = item.dia.match(/(\d{2})\/(\d{2})/);
     if (!m) return;
     const chave = `${m[1]}/${m[2]}`;
@@ -682,7 +682,8 @@ async function handleRoteiroSubmit(e) {
     endereco: document.getElementById("rot-endereco").value, 
     custo: parseFloat(document.getElementById("rot-custo").value) || 0,
     link: document.getElementById("rot-link").value, 
-    obs: document.getElementById("rot-obs").value
+    obs: document.getElementById("rot-obs").value,
+    destaque_calendario: document.getElementById("rot-destaque-calendario").checked
   };
 
   let error;
