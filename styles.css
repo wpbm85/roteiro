@@ -531,7 +531,8 @@ header {
   margin-top: 2px;
   padding: 1px 3px;
   border-radius: 3px;
-  display: inline-block;
+  display: block;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

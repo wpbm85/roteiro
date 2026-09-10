@@ -292,6 +292,9 @@ function renderDaysCarousel() {
     card.innerHTML = `<span class="day-name">${formatted.name}</span><span class="day-num">${formatted.num}</span>`;
     container.appendChild(card);
   });
+
+  const cardAtivo = container.querySelector(".day-card.active");
+  if (cardAtivo) cardAtivo.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 }
 
 function renderCityChips() {
@@ -531,10 +534,10 @@ const CALENDARIO_ANO = 2027;
 
 // Datas fixas que não vêm do roteiro (feriados/aniversários). Ajuste aqui se mudar algo.
 const EVENTOS_ESPECIAIS = {
-  '17/05': { label: 'Pentecostes', tipo: 'feriado' },
-  '27/05': { label: 'Corpus Christi', tipo: 'feriado' },
-  '18/05': { label: 'Aniv. Alice', tipo: 'aniversario' },
-  '28/05': { label: 'Aniv. William', tipo: 'aniversario' }
+  '17/05': { label: 'Pentec.', tipo: 'feriado' },
+  '27/05': { label: 'C. Christi', tipo: 'feriado' },
+  '18/05': { label: 'Alice', tipo: 'aniversario' },
+  '28/05': { label: 'William', tipo: 'aniversario' }
 };
 
 function construirDadosCalendario() {
@@ -661,7 +664,8 @@ function renderCalendario() {
       }
 
       const evento = EVENTOS_ESPECIAIS[chave];
-      const eventoHtml = evento ? `<div class="cal-evento cal-evento-${evento.tipo}">${evento.label}</div>` : '';
+      const eventoIcone = evento && evento.tipo === 'aniversario' ? '<i class="fa-solid fa-cake-candles"></i> ' : '';
+      const eventoHtml = evento ? `<div class="cal-evento cal-evento-${evento.tipo}">${eventoIcone}${evento.label}</div>` : '';
 
       const destaques = destaquesPorDia[chave] || [];
       const destaqueHtml = destaques.length > 0
