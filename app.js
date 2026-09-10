@@ -365,7 +365,7 @@ function openMaps(link, atracao, endereco) {
 // Usa nome + endereço de cada parada (não o link salvo) — é o jeito confiável de funcionar
 // com qualquer atração, já que um link de Maps individual não dá pra "encadear" em rota.
 function abrirRotasDoDia() {
-  let itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay);
+  let itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay && !i.feito);
   itensDoDia.sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
   const paradas = itensDoDia
@@ -422,13 +422,16 @@ function renderTimeline() {
 
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
       let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
+      const isFeitoTrem = item.feito ? 'feito' : '';
+      const btnFeitoClassTrem = item.feito ? 'active' : '';
       container.innerHTML += `
-        <div class="train-strip" data-id="${item.id}">
+        <div class="train-strip ${isFeitoTrem}" data-id="${item.id}">
           <div class="train-info">
             <span class="train-title"><i class="fa-solid ${iconClass}"></i> ${item.atracao}</span>
             <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
+            <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
             <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
             <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
             <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -525,6 +528,14 @@ const ABREV_CIDADES = {
 // Assume ano 2027 (o campo "dia" do roteiro só guarda dia/mês — app é o "Europa 2027").
 const CALENDARIO_ANO = 2027;
 
+// Datas fixas que não vêm do roteiro (feriados/aniversários). Ajuste aqui se mudar algo.
+const EVENTOS_ESPECIAIS = {
+  '17/05': { label: 'Pentecostes', tipo: 'feriado' },
+  '27/05': { label: 'Corpus Christi', tipo: 'feriado' },
+  '18/05': { label: 'Aniv. Alice', tipo: 'aniversario' },
+  '28/05': { label: 'Aniv. William', tipo: 'aniversario' }
+};
+
 function construirDadosCalendario() {
   const diasMap = {};
   roteiroData.forEach(item => {
@@ -582,6 +593,19 @@ function renderCalendario() {
 
   const dadosPorDia = construirDadosCalendario();
 
+  // Destaques (Disney, Versalhes etc.) — puxados ao vivo do roteiro, então se a data mudar lá, muda aqui também.
+  const destaquesPorDia = {};
+  roteiroData.forEach(item => {
+    if (!item.dia) return;
+    const cat = item.categoria === 'MARCO' ? 'DESTAQUE' : item.categoria;
+    if (cat !== 'DESTAQUE') return;
+    const m = item.dia.match(/(\d{2})\/(\d{2})/);
+    if (!m) return;
+    const chave = `${m[1]}/${m[2]}`;
+    if (!destaquesPorDia[chave]) destaquesPorDia[chave] = [];
+    if (item.atracao) destaquesPorDia[chave].push(item.atracao);
+  });
+
   // Descobre quais meses aparecem no roteiro, em ordem cronológica.
   const mesesPresentes = [...new Set(roteiroData.filter(i => i.dia).map(i => {
     const m = i.dia.match(/\d{2}\/(\d{2})/);
@@ -624,7 +648,15 @@ function renderCalendario() {
         }).join('');
       }
 
-      html += `<div class="cal-day-cell"><span class="cal-day-num">${dia}</span>${conteudo}</div>`;
+      const evento = EVENTOS_ESPECIAIS[chave];
+      const eventoHtml = evento ? `<div class="cal-evento cal-evento-${evento.tipo}">${evento.label}</div>` : '';
+
+      const destaques = destaquesPorDia[chave] || [];
+      const destaqueHtml = destaques.length > 0
+        ? `<div class="cal-destaque" title="${destaques.join(', ')}">★ ${destaques[0]}${destaques.length > 1 ? ` +${destaques.length - 1}` : ''}</div>`
+        : '';
+
+      html += `<div class="cal-day-cell"><span class="cal-day-num">${dia}</span>${conteudo}${destaqueHtml}${eventoHtml}</div>`;
     }
 
     html += `</div>`;

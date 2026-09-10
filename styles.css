@@ -227,6 +227,9 @@ header {
 }
 .train-title { font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 2px; }
 .train-route { font-size: 0.75rem; color: var(--text-muted); }
+.train-strip.feito { opacity: 0.55; }
+.train-strip.feito .train-title,
+.train-strip.feito .train-route { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 
 .euro-config {
   background: var(--bg-card);
@@ -501,14 +504,38 @@ header {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  min-height: 58px;
-  padding: 3px 2px;
+  height: 96px;
+  padding: 4px;
   overflow: hidden;
+  text-align: left;
 }
 .cal-day-cell.empty { background: transparent; border-color: transparent; }
 .cal-day-num { font-weight: 700; color: var(--text-muted); font-size: 0.62rem; display: block; }
-.cal-segment { margin-top: 2px; line-height: 1.15; text-align: center; }
+.cal-segment { margin-top: 2px; line-height: 1.15; text-align: left; }
 .cal-segment .cal-hora { color: var(--text-muted); font-size: 0.52rem; display: block; }
 .cal-segment .cal-cidade { font-weight: 800; font-size: 0.6rem; display: block; }
 .cal-segment i { font-size: 0.5rem; margin-right: 1px; color: var(--accent-blue); }
-.cal-day-cell .cal-parado { font-weight: 800; font-size: 0.62rem; display: block; text-align: center; margin-top: 10px; }
+.cal-day-cell .cal-parado { font-weight: 800; font-size: 0.62rem; display: block; text-align: left; margin-top: 8px; }
+.cal-destaque {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--cat-marco);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-evento {
+  font-size: 0.48rem;
+  font-weight: 700;
+  margin-top: 2px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.cal-evento-feriado { background: rgba(220, 38, 38, 0.15); color: #f87171; }
+.cal-evento-aniversario { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
