@@ -179,13 +179,39 @@ function autoSelectToday() {
   }
 }
 
+function gerarTodosDiasDaViagem(diasExistentes) {
+  if (diasExistentes.length === 0) return [];
+  const extrair = (str) => {
+    const m = str.match(/(\d{2})\/(\d{2})/);
+    return m ? { dia: parseInt(m[1]), mes: parseInt(m[2]) } : null;
+  };
+  const primeiro = extrair(diasExistentes[0]);
+  const ultimo = extrair(diasExistentes[diasExistentes.length - 1]);
+  if (!primeiro || !ultimo) return diasExistentes;
+
+  const dataInicio = new Date(CALENDARIO_ANO, primeiro.mes - 1, primeiro.dia);
+  const dataFim = new Date(CALENDARIO_ANO, ultimo.mes - 1, ultimo.dia);
+
+  const todos = [];
+  for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    todos.push(`${dd}/${mm} ${DIAS_SEMANA_PT[d.getDay()]}`);
+  }
+  return todos;
+}
+
 function populateSelects() {
   const uniqueDays = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))];
   uniqueDays.sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
 
+  // Lista TODOS os dias entre o primeiro e o último da viagem (não só os que têm item hoje),
+  // pra um dia nunca "sumir" do formulário só por ter ficado temporariamente vazio.
+  const todosDiasViagem = gerarTodosDiasDaViagem(uniqueDays);
+
   const rotDia = document.getElementById("rot-dia");
   if(rotDia) {
-    rotDia.innerHTML = uniqueDays.map(d => {
+    rotDia.innerHTML = todosDiasViagem.map(d => {
       const formatted = formatDayLabel(d);
       return `<option value="${d}">${formatted.full}</option>`;
     }).join("");
