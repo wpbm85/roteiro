@@ -182,7 +182,7 @@ header {
   top: 2px;
   bottom: -2px;
   width: 4px;
-  background-color: var(--accent-blue);
+  background-color: var(--bar-color, var(--accent-blue));
   border-radius: 4px;
 }
 .card-time-text {
@@ -223,7 +223,7 @@ header {
 .train-strip {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-left: 4px solid var(--accent-blue);
+  border-left: 4px solid var(--bar-color, var(--accent-blue));
   border-radius: 12px;
   padding: 12px 16px;
   margin-bottom: 12px;

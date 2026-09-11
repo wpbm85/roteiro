@@ -442,10 +442,10 @@ function renderTimeline() {
       const isFeitoTrem = item.feito ? 'feito' : '';
       const btnFeitoClassTrem = item.feito ? 'active' : '';
       container.innerHTML += `
-        <div class="train-strip ${isFeitoTrem}" data-id="${item.id}">
+        <div class="train-strip ${isFeitoTrem}" data-id="${item.id}" style="--bar-color: var(--icon-${tipoTransporte});">
           <div class="train-info">
             <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
-            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
+            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
             <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
@@ -476,7 +476,7 @@ function renderTimeline() {
     const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
 
     container.innerHTML += `
-      <div class="card ${isFeito}" data-id="${item.id}">
+      <div class="card ${isFeito}" data-id="${item.id}" style="--bar-color: ${catBg};">
         <div class="card-agenda-layout">
           <div class="card-time-col">
             <span class="card-time-text">${horaStr}</span>
@@ -488,7 +488,7 @@ function renderTimeline() {
             </div>
             <div class="card-title">${item.atracao}</div>
             ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
-            ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao : ''}</div>` : ''}
+            ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao.toUpperCase() : ''}</div>` : ''}
             ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
             
             <div class="card-actions">
