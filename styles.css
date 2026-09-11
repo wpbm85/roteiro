@@ -13,6 +13,12 @@
   --cat-hotel: #ec4899;
   --cat-restaurante: #f59e0b;
   --cat-marco: #10b981;
+  --cat-parque: #059669;
+  --cat-destaque: #2563eb;
+  --cat-loja: #dc2626;
+  --cat-outro: #64748b;
+  --icon-aviao: #2563eb;
+  --icon-trem: #eab308;
 }
 
 * {
@@ -226,6 +232,8 @@ header {
   align-items: center;
 }
 .train-title { font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 2px; }
+i[data-transporte="aviao"] { color: var(--icon-aviao); }
+i[data-transporte="trem"] { color: var(--icon-trem); }
 .train-route { font-size: 0.75rem; color: var(--text-muted); }
 .train-strip.feito { opacity: 0.55; }
 .train-strip.feito .train-title,
@@ -540,3 +548,35 @@ header {
 }
 .cal-evento-feriado { background: rgba(220, 38, 38, 0.15); color: #f87171; }
 .cal-evento-aniversario { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
+
+/* ===================== IMPRESSÃO ===================== */
+@media print {
+  /* Não força fundo colorido a imprimir (fica a critério da opção "imprimir gráficos de
+     fundo" do navegador — importante pra não gastar tinta com o modo escuro do app).
+     Só garante que a categoria continue legível mesmo sem esse fundo: texto colorido
+     + contorno fininho no lugar do preenchimento. */
+  .badge-cat {
+    background: transparent !important;
+    border: 1px solid currentColor;
+  }
+  .badge-cat[data-cat="MUSEU"]       { color: #8b5cf6 !important; }
+  .badge-cat[data-cat="HOTEL"]       { color: #ec4899 !important; }
+  .badge-cat[data-cat="RESTAURANTE"] { color: #d97706 !important; }
+  .badge-cat[data-cat="PARQUE"]      { color: #059669 !important; }
+  .badge-cat[data-cat="DESTAQUE"]    { color: #2563eb !important; }
+  .badge-cat[data-cat="LOJA"]        { color: #dc2626 !important; }
+  .badge-cat[data-cat="OUTRO"]       { color: #475569 !important; }
+
+  i[data-transporte="aviao"] { color: #2563eb !important; }
+  i[data-transporte="trem"]  { color: #ca8a04 !important; } /* amarelo puro some no papel branco — usei um tom mais escuro pra ficar legível */
+
+  /* Caixas mais compactas pra impressão */
+  .card, .train-strip, .list-item {
+    padding: 8px 10px !important;
+    margin-bottom: 6px !important;
+    border-radius: 8px !important;
+  }
+  .card-title { font-size: 0.85rem !important; margin-bottom: 2px !important; }
+  .card-address, .card-obs { font-size: 0.72rem !important; margin-top: 2px !important; }
+  .card-top { margin-bottom: 3px !important; }
+}

@@ -438,12 +438,13 @@ function renderTimeline() {
 
     if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
       let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
+      let tipoTransporte = catDisplay === "AEROPORTO" ? "aviao" : "trem";
       const isFeitoTrem = item.feito ? 'feito' : '';
       const btnFeitoClassTrem = item.feito ? 'active' : '';
       container.innerHTML += `
         <div class="train-strip ${isFeitoTrem}" data-id="${item.id}">
           <div class="train-info">
-            <span class="train-title"><i class="fa-solid ${iconClass}"></i> ${item.atracao}</span>
+            <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
             <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao : ''}</div>
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
@@ -460,7 +461,10 @@ function renderTimeline() {
     if(catDisplay === "MUSEU") catBg = "var(--cat-museu)";
     if(catDisplay === "HOTEL") catBg = "var(--cat-hotel)";
     if(catDisplay === "RESTAURANTE") catBg = "var(--cat-restaurante)";
-    if(catDisplay === "DESTAQUE") catBg = "var(--cat-marco)";
+    if(catDisplay === "DESTAQUE") catBg = "var(--cat-destaque)";
+    if(catDisplay === "PARQUE") catBg = "var(--cat-parque)";
+    if(catDisplay === "LOJA") catBg = "var(--cat-loja)";
+    if(catDisplay === "OUTRO") catBg = "var(--cat-outro)";
 
     const isFeito = item.feito ? 'feito' : '';
     const btnFeitoClass = item.feito ? 'active' : '';
@@ -479,7 +483,7 @@ function renderTimeline() {
           </div>
           <div class="card-body-col">
             <div class="card-top">
-              <span class="badge-cat" style="background: ${catBg}">${catDisplay}</span>
+              <span class="badge-cat" data-cat="${catDisplay}" style="background: ${catBg}">${catDisplay}</span>
               <span class="card-cost" style="color: ${catBg};">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
             </div>
             <div class="card-title">${item.atracao}</div>
