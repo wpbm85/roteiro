@@ -672,8 +672,9 @@ function renderCalendario() {
           if (!seg.icone) {
             return `<span class="cal-parado">${ABREV_CIDADES[seg.cidade] || seg.cidade}</span>`;
           }
+          const tipoTransporte = seg.icone === 'fa-plane' ? 'aviao' : 'trem';
           return `<div class="cal-segment">
-            <span class="cal-hora"><i class="fa-solid ${seg.icone}"></i>${seg.hora || ''}</span>
+            <span class="cal-hora"><i class="fa-solid ${seg.icone}" data-transporte="${tipoTransporte}"></i>${seg.hora || ''}</span>
             <span class="cal-cidade">${ABREV_CIDADES[seg.cidade] || seg.cidade}</span>
           </div>`;
         }).join('');

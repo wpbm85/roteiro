@@ -522,12 +522,12 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
 .cal-segment { margin-top: 2px; line-height: 1.15; text-align: left; }
 .cal-segment .cal-hora { color: var(--text-muted); font-size: 0.52rem; display: block; }
 .cal-segment .cal-cidade { font-weight: 800; font-size: 0.6rem; display: block; }
-.cal-segment i { font-size: 0.5rem; margin-right: 1px; color: var(--accent-blue); }
+.cal-segment i { font-size: 0.5rem; margin-right: 1px; }
 .cal-day-cell .cal-parado { font-weight: 800; font-size: 0.62rem; display: block; text-align: left; margin-top: 8px; }
 .cal-destaque {
   font-size: 0.5rem;
   font-weight: 700;
-  color: var(--cat-marco);
+  color: var(--cat-destaque);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
