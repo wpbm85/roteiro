@@ -428,13 +428,33 @@ function abrirRotasDoDia() {
   window.open(url, '_blank');
 }
 
+// Se o valor salvo não bater com nenhuma <option> do select, adiciona ele como opção extra —
+// evita que o navegador troque escondido pra primeira opção da lista (e isso vazar pro banco
+// se o formulário for salvo sem querer nesse estado).
+function garantirOpcao(selectEl, valor) {
+  if (!selectEl || !valor) return;
+  const existe = [...selectEl.options].some(o => o.value === valor);
+  if (!existe) {
+    const opt = document.createElement('option');
+    opt.value = valor;
+    opt.textContent = `${valor} (valor original, fora do padrão)`;
+    selectEl.appendChild(opt);
+  }
+}
+
 function editRoteiro(id) {
   const item = roteiroData.find(i => i.id === id);
   if(!item) return;
+  const categoriaNormalizada = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
+
+  garantirOpcao(document.getElementById("rot-dia"), item.dia);
+  garantirOpcao(document.getElementById("rot-cidade"), item.cidade);
+  garantirOpcao(document.getElementById("rot-categoria"), categoriaNormalizada);
+
   document.getElementById("rot-id").value = item.id;
   document.getElementById("rot-dia").value = item.dia;
   document.getElementById("rot-cidade").value = item.cidade;
-  document.getElementById("rot-categoria").value = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
+  document.getElementById("rot-categoria").value = categoriaNormalizada;
   document.getElementById("rot-atracao").value = item.atracao;
   document.getElementById("rot-hora").value = item.hora || "";
   document.getElementById("rot-funcionamento").value = item.funcionamento || item.horario || "";
@@ -1032,11 +1052,19 @@ function editOrcamento(id) {
   if(!item) return;
   const linked = isOrcamentoLinked(id);
 
+  const catTrim = (item.categoria || '').trim();
+  const statusUsado = item.status === "PAGO" ? "A PAGAR" : item.status;
+
+  garantirOpcao(document.getElementById("orc-cat"), catTrim);
+  garantirOpcao(document.getElementById("orc-cidade"), item.cidade || "GERAL");
+  garantirOpcao(document.getElementById("orc-status"), statusUsado);
+  garantirOpcao(document.getElementById("orc-moeda"), item.moeda || "EUR");
+
   document.getElementById("orc-id").value = item.id;
-  document.getElementById("orc-cat").value = (item.categoria || '').trim();
+  document.getElementById("orc-cat").value = catTrim;
   document.getElementById("orc-cidade").value = item.cidade || "GERAL";
   document.getElementById("orc-item").value = (item.item || '').trim();
-  document.getElementById("orc-status").value = item.status === "PAGO" ? "A PAGAR" : item.status;
+  document.getElementById("orc-status").value = statusUsado;
   document.getElementById("orc-moeda").value = item.moeda || "EUR";
 
   let valDisplay = item.moeda === "BRL" ? (item.projetado_eur * euroMedio) : item.projetado_eur;
@@ -1199,6 +1227,8 @@ function editGasto(id) {
     rawDate = clean;
   }
   document.getElementById("gas-data").value = rawDate;
+  garantirOpcao(document.getElementById("gas-cidade"), item.cidade || "GERAL");
+  garantirOpcao(document.getElementById("gas-cat"), (item.categoria || '').trim());
   document.getElementById("gas-cidade").value = item.cidade || "GERAL";
   document.getElementById("gas-cat").value = (item.categoria || '').trim();
   document.getElementById("gas-item").value = (item.item || '').trim();
