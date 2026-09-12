@@ -847,13 +847,22 @@ async function calcularOrdemInsercao(payload) {
   const sequenciaFinal = [...comHora.slice(0, idxInsercao), { __novo: true }, ...comHora.slice(idxInsercao), ...semHora];
 
   let ordemDoNovo = 1;
-  const atualizacoes = [];
+  const paraAtualizar = [];
   sequenciaFinal.forEach((item, i) => {
     const novaOrdem = i + 1;
     if (item.__novo) ordemDoNovo = novaOrdem;
-    else if (item.ordem !== novaOrdem) atualizacoes.push(_supabase.from('roteiro').update({ ordem: novaOrdem }).eq('id', item.id));
+    else if (item.ordem !== novaOrdem) paraAtualizar.push({ id: item.id, ordem: novaOrdem });
   });
-  await Promise.all(atualizacoes);
+
+  // Uma atualização de cada vez (não em paralelo) — mais lento, mas bem mais confiável
+  // em conexão de celular instável. Se uma falhar, avisa mas não impede o item novo de salvar.
+  for (const { id, ordem } of paraAtualizar) {
+    try {
+      await _supabase.from('roteiro').update({ ordem }).eq('id', id);
+    } catch (err) {
+      console.error('Falha ao reordenar item', id, err);
+    }
+  }
   return ordemDoNovo;
 }
 
