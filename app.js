@@ -801,7 +801,7 @@ async function handleRoteiroSubmit(e) {
     dia: canonicalizarDia(document.getElementById("rot-dia").value), 
     cidade: document.getElementById("rot-cidade").value,
     atracao: document.getElementById("rot-atracao").value, 
-    categoria: catVal === "DESTAQUE" ? "MARCO" : catVal,
+    categoria: catVal,
     hora: document.getElementById("rot-hora").value,
     funcionamento: document.getElementById("rot-funcionamento").value,
     regiao: document.getElementById("rot-regiao").value, 
