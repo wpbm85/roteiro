@@ -816,8 +816,8 @@ async function handleRoteiroSubmit(e) {
   if(idStr) {
     ({ error } = await _supabase.from('roteiro').update(payload).eq('id', parseInt(idStr)));
   } else {
-    payload.ordem = 99;
     payload.feito = false;
+    payload.ordem = await calcularOrdemInsercao(payload);
     ({ error } = await _supabase.from('roteiro').insert([payload]));
   }
 
@@ -825,6 +825,36 @@ async function handleRoteiroSubmit(e) {
 
   closeModal('modal-roteiro'); 
   await loadAllData(false);
+}
+
+// Calcula em que posição um item NOVO deve entrar dentro do dia, com base na hora.
+// Itens com hora ficam em ordem cronológica; itens sem hora ficam depois, na ordem
+// relativa que já tinham. Reescreve a "ordem" dos itens existentes pra abrir espaço.
+async function calcularOrdemInsercao(payload) {
+  const itensDoDia = roteiroData.filter(i => mesmoDia(i.dia, payload.dia));
+  const horaNova = (payload.hora || '').trim();
+
+  if (!horaNova || itensDoDia.length === 0) {
+    return itensDoDia.length + 1;
+  }
+
+  const comHora = itensDoDia.filter(i => (i.hora || '').trim()).sort((a, b) => a.hora.trim().localeCompare(b.hora.trim()));
+  const semHora = itensDoDia.filter(i => !(i.hora || '').trim()).sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+
+  let idxInsercao = comHora.findIndex(i => horaNova < i.hora.trim());
+  if (idxInsercao === -1) idxInsercao = comHora.length;
+
+  const sequenciaFinal = [...comHora.slice(0, idxInsercao), { __novo: true }, ...comHora.slice(idxInsercao), ...semHora];
+
+  let ordemDoNovo = 1;
+  const atualizacoes = [];
+  sequenciaFinal.forEach((item, i) => {
+    const novaOrdem = i + 1;
+    if (item.__novo) ordemDoNovo = novaOrdem;
+    else if (item.ordem !== novaOrdem) atualizacoes.push(_supabase.from('roteiro').update({ ordem: novaOrdem }).eq('id', item.id));
+  });
+  await Promise.all(atualizacoes);
+  return ordemDoNovo;
 }
 
 function updateEuro(origemId) {
