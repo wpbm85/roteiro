@@ -165,18 +165,33 @@ function parseDateForSort(dayStr) {
   return 9999;
 }
 
+// Extrai só "DD/MM" de qualquer formato de dia (ignora a abreviação do dia da semana,
+// que pode vir em português, inglês, maiúsculo ou minúsculo dependendo de como o dado
+// foi importado).
+function diaKeyDDMM(dayStr) {
+  if (!dayStr) return null;
+  const m = dayStr.match(/(\d{2}\/\d{2})/);
+  return m ? m[1] : null;
+}
+
+// Compara dois valores de "dia" só pela data — evita que diferenças de formatação
+// no texto do dia da semana façam dois dias iguais parecerem diferentes.
+function mesmoDia(diaA, diaB) {
+  const ka = diaKeyDDMM(diaA);
+  const kb = diaKeyDDMM(diaB);
+  return ka !== null && ka === kb;
+}
+
 function autoSelectToday() {
   const hoje = new Date();
   const diaMes = hoje.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  const targetDay = roteiroData.find(i => i.dia && i.dia.startsWith(diaMes));
-  
-  if (targetDay) {
-    currentSelectedDay = targetDay.dia;
-  } else {
-    const uniqueDays = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))];
-    uniqueDays.sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
-    currentSelectedDay = uniqueDays[0] || "";
-  }
+
+  const diasComItem = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))]
+    .sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+  const diasCanonicos = gerarTodosDiasDaViagem(diasComItem);
+
+  const canonicoHoje = diasCanonicos.find(d => d.startsWith(diaMes));
+  currentSelectedDay = canonicoHoje || diasCanonicos[0] || "";
 }
 
 function gerarTodosDiasDaViagem(diasExistentes) {
@@ -283,7 +298,7 @@ function openContextModal() {
     if (currentFilter && currentFilter !== "TODAS") {
       cidadeSugerida = currentFilter;
     } else {
-      const itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay).sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+      const itensDoDia = roteiroData.filter(i => mesmoDia(i.dia, currentSelectedDay)).sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
       if (itensDoDia.length > 0) cidadeSugerida = itensDoDia[itensDoDia.length - 1].cidade || "";
     }
     if (cidadeSugerida) document.getElementById("rot-cidade").value = cidadeSugerida;
@@ -315,17 +330,22 @@ function renderDaysCarousel() {
   const container = document.getElementById("days-carousel-container");
   if(!container) return;
   container.innerHTML = "";
-  let uniqueDays = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))];
-  
-  if (currentFilter !== "TODAS") {
-    uniqueDays = [...new Set(roteiroData.filter(i => i.cidade === currentFilter).map(item => item.dia))];
-  }
-  uniqueDays.sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
 
-  uniqueDays.forEach(dayStr => {
+  const diasComItem = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))]
+    .sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+  let diasCanonicos = gerarTodosDiasDaViagem(diasComItem);
+
+  if (currentFilter !== "TODAS") {
+    const diasComItemNaCidade = new Set(
+      roteiroData.filter(i => i.cidade === currentFilter).map(i => diaKeyDDMM(i.dia)).filter(Boolean)
+    );
+    diasCanonicos = diasCanonicos.filter(d => diasComItemNaCidade.has(diaKeyDDMM(d)));
+  }
+
+  diasCanonicos.forEach(dayStr => {
     const formatted = formatDayLabel(dayStr);
     const card = document.createElement("div");
-    card.className = `day-card ${dayStr === currentSelectedDay ? 'active' : ''}`;
+    card.className = `day-card ${mesmoDia(dayStr, currentSelectedDay) ? 'active' : ''}`;
     card.onclick = () => { currentSelectedDay = dayStr; renderDaysCarousel(); renderCityChips(); renderTimeline(); };
     card.innerHTML = `<span class="day-name">${formatted.name}</span><span class="day-num">${formatted.num}</span>`;
     container.appendChild(card);
@@ -341,7 +361,7 @@ function renderCityChips() {
   let validCities = [...new Set(roteiroData.map(i => i.cidade ? i.cidade.toUpperCase() : "").filter(Boolean))];
   
   if (currentSelectedDay) {
-    validCities = [...new Set(roteiroData.filter(i => i.dia === currentSelectedDay).map(i => i.cidade ? i.cidade.toUpperCase() : ""))];
+    validCities = [...new Set(roteiroData.filter(i => mesmoDia(i.dia, currentSelectedDay)).map(i => i.cidade ? i.cidade.toUpperCase() : ""))];
   }
   if (currentFilter !== "TODAS" && !validCities.includes(currentFilter)) currentFilter = "TODAS";
 
@@ -406,7 +426,7 @@ function openMaps(link, atracao, endereco) {
 // Usa nome + endereço de cada parada (não o link salvo) — é o jeito confiável de funcionar
 // com qualquer atração, já que um link de Maps individual não dá pra "encadear" em rota.
 function abrirRotasDoDia() {
-  let itensDoDia = roteiroData.filter(i => i.dia === currentSelectedDay && !i.feito);
+  let itensDoDia = roteiroData.filter(i => mesmoDia(i.dia, currentSelectedDay) && !i.feito);
   itensDoDia.sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
   const paradas = itensDoDia
@@ -442,17 +462,31 @@ function garantirOpcao(selectEl, valor) {
   }
 }
 
+// Acha, entre as opções já existentes no select, uma cujo "DD/MM" bate com o valor salvo —
+// mesmo que o texto do dia da semana seja diferente (ex.: "13/05 thu" vs "13/05 QUI").
+// Só cai no fallback "valor original" se a data não existir em nenhuma opção mesmo.
+function normalizarValorDeDia(selectEl, diaBruto) {
+  if (!diaBruto) return diaBruto;
+  const jaExiste = [...selectEl.options].some(o => o.value === diaBruto);
+  if (jaExiste) return diaBruto;
+
+  const chave = diaKeyDDMM(diaBruto);
+  const opcaoEquivalente = chave && [...selectEl.options].find(o => diaKeyDDMM(o.value) === chave);
+  return opcaoEquivalente ? opcaoEquivalente.value : diaBruto;
+}
+
 function editRoteiro(id) {
   const item = roteiroData.find(i => i.id === id);
   if(!item) return;
   const categoriaNormalizada = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
+  const diaNormalizado = normalizarValorDeDia(document.getElementById("rot-dia"), item.dia);
 
-  garantirOpcao(document.getElementById("rot-dia"), item.dia);
+  garantirOpcao(document.getElementById("rot-dia"), diaNormalizado);
   garantirOpcao(document.getElementById("rot-cidade"), item.cidade);
   garantirOpcao(document.getElementById("rot-categoria"), categoriaNormalizada);
 
   document.getElementById("rot-id").value = item.id;
-  document.getElementById("rot-dia").value = item.dia;
+  document.getElementById("rot-dia").value = diaNormalizado;
   document.getElementById("rot-cidade").value = item.cidade;
   document.getElementById("rot-categoria").value = categoriaNormalizada;
   document.getElementById("rot-atracao").value = item.atracao;
@@ -472,7 +506,7 @@ function renderTimeline() {
   if(!container) return;
   container.innerHTML = "";
 
-  let filtered = roteiroData.filter(i => i.dia === currentSelectedDay);
+  let filtered = roteiroData.filter(i => mesmoDia(i.dia, currentSelectedDay));
   if (currentFilter !== "TODAS") filtered = filtered.filter(i => i.cidade === currentFilter);
   if (showDone === "PENDING") filtered = filtered.filter(i => !i.feito);
   
@@ -605,9 +639,10 @@ const EVENTOS_ESPECIAIS = {
 function construirDadosCalendario() {
   const diasMap = {};
   roteiroData.forEach(item => {
-    if (!item.dia) return;
-    if (!diasMap[item.dia]) diasMap[item.dia] = [];
-    diasMap[item.dia].push(item);
+    const chave = diaKeyDDMM(item.dia);
+    if (!chave) return;
+    if (!diasMap[chave]) diasMap[chave] = [];
+    diasMap[chave].push(item);
   });
 
   const diasOrdenados = Object.keys(diasMap).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
@@ -658,7 +693,7 @@ function irParaDiaNoRoteiro(chaveDDMM) {
   const itemDoDia = roteiroData.find(i => i.dia && i.dia.startsWith(chaveDDMM));
   if (!itemDoDia) return;
 
-  currentSelectedDay = itemDoDia.dia;
+  currentSelectedDay = canonicalizarDia(itemDoDia.dia);
   switchTab('roteiro', document.getElementById('nav-btn-roteiro'));
   renderDaysCarousel();
   renderCityChips();
@@ -746,6 +781,16 @@ function renderCalendario() {
   container.innerHTML = html;
 }
 
+// Recalcula o dia da semana certo a partir da data (dd/mm) — assim, mesmo que o valor
+// selecionado venha num formato antigo/importado, o que é salvo fica sempre padronizado.
+function canonicalizarDia(diaBruto) {
+  const chave = diaKeyDDMM(diaBruto);
+  if (!chave) return diaBruto;
+  const [dd, mm] = chave.split('/').map(Number);
+  const d = new Date(CALENDARIO_ANO, mm - 1, dd);
+  return `${chave} ${DIAS_SEMANA_PT[d.getDay()]}`;
+}
+
 async function handleRoteiroSubmit(e) {
   if(e) e.preventDefault();
   const elId = document.getElementById("rot-id");
@@ -753,7 +798,7 @@ async function handleRoteiroSubmit(e) {
   let catVal = document.getElementById("rot-categoria").value;
   
   const payload = {
-    dia: document.getElementById("rot-dia").value, 
+    dia: canonicalizarDia(document.getElementById("rot-dia").value), 
     cidade: document.getElementById("rot-cidade").value,
     atracao: document.getElementById("rot-atracao").value, 
     categoria: catVal === "DESTAQUE" ? "MARCO" : catVal,
