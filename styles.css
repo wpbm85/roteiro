@@ -249,7 +249,8 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
 .train-route { font-size: 0.75rem; color: var(--text-muted); }
 .train-strip.feito { opacity: 0.55; }
 .train-strip.feito .train-title,
-.train-strip.feito .train-route { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.train-strip.feito .train-route,
+.train-strip.feito .card-obs { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 
 .euro-config {
   background: var(--bg-card);

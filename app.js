@@ -530,6 +530,7 @@ function renderTimeline() {
           <div class="train-info">
             <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
             <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
+            ${item.obs ? `<div class="card-obs" style="--obs-color: var(--icon-${tipoTransporte});"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
           </div>
           <div class="action-group" style="display:flex; gap:4px;">
             <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
