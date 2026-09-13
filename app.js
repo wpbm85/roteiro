@@ -569,7 +569,7 @@ function renderTimeline() {
             <div class="card-title">${item.atracao}</div>
             ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
             ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao.toUpperCase() : ''}</div>` : ''}
-            ${item.obs ? `<div class="card-obs"><i class="fa-solid fa-circle-exclamation"></i> ${item.obs}</div>` : ''}
+            ${item.obs ? `<div class="card-obs" style="--obs-color: ${catBg};"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
             
             <div class="card-actions">
               <div class="action-group">
