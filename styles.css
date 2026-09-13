@@ -201,9 +201,9 @@ header {
 .card-address { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
 .card-obs {
   font-size: 0.78rem;
-  color: var(--obs-color, #d97706);
-  background: rgba(148, 163, 184, 0.12);
-  background: color-mix(in srgb, var(--obs-color, #d97706) 15%, transparent);
+  color: #fff;
+  background: rgba(148, 163, 184, 0.35);
+  background: color-mix(in srgb, var(--obs-color, #d97706) 45%, var(--bg-card));
   margin-top: 6px;
   padding: 3px 8px 3px 3px;
   border-radius: 6px;
@@ -570,7 +570,7 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
     background: transparent !important;
     border: 1px solid currentColor;
   }
-  .card-obs { background: transparent !important; border: 1px solid currentColor; }
+  .card-obs { background: transparent !important; border: 1px solid currentColor; color: var(--obs-color, #d97706) !important; }
   .badge-cat[data-cat="MUSEU"]       { color: #8b5cf6 !important; }
   .badge-cat[data-cat="HOTEL"]       { color: #ec4899 !important; }
   .badge-cat[data-cat="RESTAURANTE"] { color: #d97706 !important; }

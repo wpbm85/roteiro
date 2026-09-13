@@ -430,7 +430,11 @@ function abrirRotasDoDia() {
   itensDoDia.sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
   const paradas = itensDoDia
-    .map(i => `${(i.atracao || '').trim()} ${(i.endereco || i.regiao || '').trim()}`.trim())
+    .map(i => {
+      const nome = `${(i.atracao || '').trim()} ${(i.endereco || i.regiao || '').trim()}`.trim();
+      const cidade = (i.cidade || '').trim();
+      return cidade && cidade !== 'GERAL' ? `${nome}, ${cidade}` : nome;
+    })
     .filter(Boolean);
 
   if (paradas.length < 2) {
