@@ -198,7 +198,18 @@ header {
 .badge-cat { font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; color: #fff; text-transform: uppercase; }
 .card-cost { font-size: 0.9rem; font-weight: 800; }
 .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-.card-address, .card-obs { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.card-address { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.card-obs {
+  font-size: 0.78rem;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.12);
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .card-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
 .action-group { display: flex; gap: 6px; align-items: center; }
@@ -512,9 +523,8 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  height: 96px;
+  min-height: 96px;
   padding: 4px;
-  overflow: hidden;
   text-align: left;
 }
 .cal-day-cell.empty { background: transparent; border-color: transparent; }
@@ -559,6 +569,7 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
     background: transparent !important;
     border: 1px solid currentColor;
   }
+  .card-obs { background: transparent !important; border: 1px solid currentColor; }
   .badge-cat[data-cat="MUSEU"]       { color: #8b5cf6 !important; }
   .badge-cat[data-cat="HOTEL"]       { color: #ec4899 !important; }
   .badge-cat[data-cat="RESTAURANTE"] { color: #d97706 !important; }
