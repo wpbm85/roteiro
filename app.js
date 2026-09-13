@@ -658,8 +658,13 @@ function construirDadosCalendario() {
     const itens = [...diasMap[diaStr]].sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
     // Agrupa os itens do dia em "blocos" por cidade consecutiva (voo/trem viram um bloco especial).
+    // Itens de trem/avião só contam pra transição se estiverem marcados com "Destacar no Calendário" —
+    // assim um trem local (não marcado) simplesmente não aparece aqui.
     const blocos = [];
     itens.forEach(item => {
+      const ehTransporte = item.categoria === 'AEROPORTO' || item.categoria === 'ESTAÇÃO';
+      if (ehTransporte && !item.destaque_calendario) return;
+
       let cid = (item.cidade || '').trim().toUpperCase();
       if (!cid) return;
       let rotulo = cid, icone = 'fa-train', chave = cid;
