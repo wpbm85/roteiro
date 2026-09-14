@@ -657,9 +657,9 @@ function construirDadosCalendario() {
   diasOrdenados.forEach(diaStr => {
     const itens = [...diasMap[diaStr]].sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
-    // Agrupa os itens do dia em "blocos" por cidade consecutiva (voo/trem viram um bloco especial).
-    // Itens de trem/avião só contam pra transição se estiverem marcados com "Destacar no Calendário" —
-    // assim um trem local (não marcado) simplesmente não aparece aqui.
+    // Agrupa os itens do dia em "blocos". Item de transporte marcado com "Destacar no Calendário"
+    // SEMPRE vira seu próprio marco (mesmo que a cidade seja igual à do bloco anterior — ex.: uma
+    // estação de partida dentro da própria cidade). Item comum só cria bloco novo se a cidade mudou.
     const blocos = [];
     itens.forEach(item => {
       const ehTransporte = item.categoria === 'AEROPORTO' || item.categoria === 'ESTAÇÃO';
@@ -667,20 +667,24 @@ function construirDadosCalendario() {
 
       let cid = (item.cidade || '').trim().toUpperCase();
       if (!cid) return;
-      let rotulo = cid, icone = null, chave = cid;
+
       if (ehTransporte) {
-        if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; chave = '__VOO__'; }
-        else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; chave = '__TREM__'; }
-        else icone = item.categoria === 'AEROPORTO' ? 'fa-plane' : 'fa-train';
+        let rotulo = cid, icone = 'fa-train';
+        if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; }
+        else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; }
+        else if (item.categoria === 'AEROPORTO') { icone = 'fa-plane'; }
+        blocos.push({ cid, rotulo, icone, hora: item.hora || '', transporte: true });
+        return;
       }
 
       const ultimo = blocos[blocos.length - 1];
-      if (ultimo && ultimo.chave === chave) return; // mesmo bloco, ignora repetição
-      blocos.push({ chave, rotulo, icone, hora: item.hora || '' });
+      if (ultimo && ultimo.cid === cid) return; // mesma cidade do bloco anterior, ignora repetição
+      blocos.push({ cid, rotulo: cid, icone: null, hora: '', transporte: false });
     });
 
     let segmentos = [];
-    if (blocos.length === 1 && blocos[0].chave === cidadeAnterior) {
+    const soFicouParado = blocos.length === 1 && !blocos[0].transporte && blocos[0].cid === cidadeAnterior;
+    if (soFicouParado) {
       // Dia parado: só continua na mesma cidade de ontem — sem hora/ícone.
       segmentos.push({ hora: '', cidade: blocos[0].rotulo, icone: null });
     } else if (blocos.length > 0) {
@@ -692,8 +696,10 @@ function construirDadosCalendario() {
     if (m) porDia[`${m[1]}/${m[2]}`] = segmentos;
 
     if (blocos.length > 0) {
-      const ultimoBloco = blocos[blocos.length - 1];
-      if (ultimoBloco.chave !== '__VOO__' && ultimoBloco.chave !== '__TREM__') cidadeAnterior = ultimoBloco.chave;
+      // Cidade "atual" pro próximo dia: o último bloco cuja cidade seja conhecida (ignora VOO/TREM genérico, cid=GERAL).
+      for (let i = blocos.length - 1; i >= 0; i--) {
+        if (blocos[i].cid !== 'GERAL') { cidadeAnterior = blocos[i].cid; break; }
+      }
     }
   });
 
