@@ -667,10 +667,12 @@ function construirDadosCalendario() {
 
       let cid = (item.cidade || '').trim().toUpperCase();
       if (!cid) return;
-      let rotulo = cid, icone = 'fa-train', chave = cid;
-      if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; chave = '__VOO__'; }
-      else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; chave = '__TREM__'; }
-      else if (item.categoria === 'AEROPORTO') { icone = 'fa-plane'; }
+      let rotulo = cid, icone = null, chave = cid;
+      if (ehTransporte) {
+        if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; chave = '__VOO__'; }
+        else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; chave = '__TREM__'; }
+        else icone = item.categoria === 'AEROPORTO' ? 'fa-plane' : 'fa-train';
+      }
 
       const ultimo = blocos[blocos.length - 1];
       if (ultimo && ultimo.chave === chave) return; // mesmo bloco, ignora repetição
@@ -716,11 +718,13 @@ function renderCalendario() {
 
   const dadosPorDia = construirDadosCalendario();
 
-  // Destaques (Disney, Versalhes etc.) — só os marcados com o checkbox "Destacar no Calendário",
-  // puxados ao vivo do roteiro (se a data do item mudar lá, muda aqui também).
+  // Destaques (Disney, Versalhes etc.) — só atrações de verdade marcadas com "Destacar no Calendário".
+  // Trem/estação/aeroporto usam essa mesma caixa só pra decidir se contam como transição de cidade
+  // (acima), não viram ★ aqui, mesmo se estiverem marcados.
   const destaquesPorDia = {};
   roteiroData.forEach(item => {
     if (!item.dia || !item.destaque_calendario) return;
+    if (item.categoria === 'AEROPORTO' || item.categoria === 'ESTAÇÃO') return;
     const m = item.dia.match(/(\d{2})\/(\d{2})/);
     if (!m) return;
     const chave = `${m[1]}/${m[2]}`;
