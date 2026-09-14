@@ -818,7 +818,27 @@ async function handleRoteiroSubmit(e) {
   const elId = document.getElementById("rot-id");
   const idStr = elId ? elId.value : "";
   let catVal = document.getElementById("rot-categoria").value;
-  
+
+  if (idStr) {
+    // Trava de segurança: se está editando um item que já existia e os 3 campos-chave
+    // caíram simultaneamente pra primeira opção da lista, isso é a marca registrada de
+    // um reset silencioso (o mesmo padrão que já corrompeu dados antes) — pede confirmação.
+    const diaEl = document.getElementById("rot-dia");
+    const cidadeEl = document.getElementById("rot-cidade");
+    const catEl = document.getElementById("rot-categoria");
+    const pareceResetado = diaEl.options.length > 0 && cidadeEl.options.length > 0 && catEl.options.length > 0 &&
+      diaEl.value === diaEl.options[0].value &&
+      cidadeEl.value === cidadeEl.options[0].value &&
+      catEl.value === catEl.options[0].value;
+    if (pareceResetado) {
+      const original = roteiroData.find(i => i.id === parseInt(idStr));
+      const eraDiferente = original && (original.dia !== diaEl.value || original.cidade !== cidadeEl.value);
+      if (eraDiferente && !confirm('Dia, Cidade e Categoria voltaram todos ao padrão (isso parece um bug conhecido). Tem certeza que quer salvar assim mesmo?\n\nSe não tiver certeza, toque em Cancelar e edite de novo.')) {
+        return;
+      }
+    }
+  }
+
   const payload = {
     dia: canonicalizarDia(document.getElementById("rot-dia").value), 
     cidade: document.getElementById("rot-cidade").value,
