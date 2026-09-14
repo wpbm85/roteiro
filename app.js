@@ -683,13 +683,15 @@ function construirDadosCalendario() {
     });
 
     let segmentos = [];
-    const soFicouParado = blocos.length === 1 && !blocos[0].transporte && blocos[0].cid === cidadeAnterior;
-    if (soFicouParado) {
-      // Dia parado: só continua na mesma cidade de ontem — sem hora/ícone.
-      segmentos.push({ hora: '', cidade: blocos[0].rotulo, icone: null });
-    } else if (blocos.length > 0) {
-      // Dia com transição (uma ou mais pernas) — mostra todas.
-      segmentos = blocos.map(b => ({ hora: b.hora, cidade: b.rotulo, icone: b.icone }));
+    if (blocos.length > 0) {
+      // Se o primeiro bloco do dia já É a cidade de ontem mostrada sem ícone (dia parado, ou uma
+      // atração comum logo cedo na mesma cidade), não repete. Senão, mostra a cidade de origem
+      // primeiro — mesmo que o dia comece direto com um trem/avião — pra nunca faltar essa info.
+      const primeiroJaMostraOrigem = !blocos[0].transporte && blocos[0].cid === cidadeAnterior;
+      if (cidadeAnterior && !primeiroJaMostraOrigem) {
+        segmentos.push({ hora: '', cidade: cidadeAnterior, icone: null });
+      }
+      blocos.forEach(b => segmentos.push({ hora: b.hora, cidade: b.rotulo, icone: b.icone }));
     }
 
     const m = diaStr.match(/(\d{2})\/(\d{2})/);
