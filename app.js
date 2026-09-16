@@ -1398,7 +1398,15 @@ async function handleGastosSubmit(e) {
 function exportToXLSX() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(roteiroData), "ROTEIRO");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcamentoData), "ORÇAMENTO");
+
+  // Mesma lógica da tela: status vira PAGO quando existe gasto real vinculado,
+  // mesmo que o valor "cru" salvo no banco continue A PAGAR/PROJETADO.
+  const orcamentoParaExportar = orcamentoData.map(item => {
+    const vinculado = gastosData.some(g => g.orcamento_id === item.id);
+    return vinculado ? { ...item, status: 'PAGO' } : item;
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcamentoParaExportar), "ORÇAMENTO");
+
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gastosData), "GASTOS");
   XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
