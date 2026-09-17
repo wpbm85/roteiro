@@ -1048,6 +1048,7 @@ function renderOrcamento() {
           <span class="cat-group-name">${cat}</span>
           <span class="cat-group-totals">
             <strong style="color:#059669;">€ ${subEfet.toFixed(2)}</strong>
+            <small style="color:#d97706;"> / € ${Math.max(0, subProj - subEfet).toFixed(2)}</small>
             <small style="color:var(--text-muted);"> / € ${subProj.toFixed(2)}</small>
           </span>
         </summary>
