@@ -941,13 +941,11 @@ function renderOrcamento() {
 
   let processedOrcamento = orcamentoData.map(item => {
     let projEur = parseFloat(item.projetado_eur) || 0;
-    projTot += projEur;
 
     let catName = (item.categoria || 'SEM CATEGORIA').trim();
     let cidadeName = (item.cidade || 'GERAL').trim().toUpperCase();
 
     if (!catTotals[catName]) catTotals[catName] = { proj: 0, efet: 0 };
-    catTotals[catName].proj += projEur;
 
     let gastosVinculados = gastosData.filter(g => g.orcamento_id === item.id);
     let isLinked = gastosVinculados.length > 0;
@@ -976,6 +974,11 @@ function renderOrcamento() {
       statusColor = "#ea580c";
     }
 
+    // Total "real": valor efetivamente pago pros itens já pagos, valor orçado pros que ainda não —
+    // evita que um item pago com valor real diferente do projetado deixe "pendente" fantasma.
+    projTot += displayValEur;
+    catTotals[catName].proj += displayValEur;
+
     return { ...item, catName, cidadeName, displayValEur, statusText, statusColor, sortWeight: orderMap[statusText] || 4, isLinked, cidadesGastosVinculados };
   });
 
@@ -990,13 +993,13 @@ function renderOrcamento() {
     if (currentOrcCityFilter === "TODAS") {
       totalCidadeContainer.innerHTML = "";
     } else {
-      const cidadeProj = listaFiltrada.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
       const cidadeEfet = listaFiltrada.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
+      const cidadeTotal = listaFiltrada.reduce((acc, i) => acc + (i.statusText === 'PAGO' ? i.displayValEur : (parseFloat(i.projetado_eur) || 0)), 0);
       const nomeCidade = currentOrcCityFilter.charAt(0) + currentOrcCityFilter.slice(1).toLowerCase();
       totalCidadeContainer.innerHTML = `
         <div class="city-total-box">
           <span>Total em ${nomeCidade}</span>
-          <span><strong style="color:#059669;">€ ${cidadeEfet.toFixed(2)}</strong> <small style="color:var(--text-muted);">/ € ${cidadeProj.toFixed(2)}</small></span>
+          <span><strong style="color:#059669;">€ ${cidadeEfet.toFixed(2)}</strong> <small style="color:var(--text-muted);">/ € ${cidadeTotal.toFixed(2)}</small></span>
         </div>`;
     }
   }
@@ -1019,7 +1022,7 @@ function renderOrcamento() {
   let listHtml = '';
   nomesCategoria.forEach(cat => {
     const itensCategoria = porCategoria[cat];
-    const subProj = itensCategoria.reduce((acc, i) => acc + (parseFloat(i.projetado_eur) || 0), 0);
+    const subTotal = itensCategoria.reduce((acc, i) => acc + (i.statusText === 'PAGO' ? i.displayValEur : (parseFloat(i.projetado_eur) || 0)), 0);
     const subEfet = itensCategoria.filter(i => i.statusText === 'PAGO').reduce((acc, i) => acc + i.displayValEur, 0);
 
     const itensOrdenados = [...itensCategoria].sort((a, b) => {
@@ -1048,8 +1051,8 @@ function renderOrcamento() {
           <span class="cat-group-name">${cat}</span>
           <span class="cat-group-totals">
             <strong style="color:#059669;">€ ${subEfet.toFixed(2)}</strong>
-            <small style="color:#d97706;"> / € ${Math.max(0, subProj - subEfet).toFixed(2)}</small>
-            <small style="color:var(--text-muted);"> / € ${subProj.toFixed(2)}</small>
+            <small style="color:#d97706;"> / € ${Math.max(0, subTotal - subEfet).toFixed(2)}</small>
+            <small style="color:var(--text-muted);"> / € ${subTotal.toFixed(2)}</small>
           </span>
         </summary>
         <div class="cat-group-body">${bodyHtml}</div>
