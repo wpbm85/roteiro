@@ -592,4 +592,17 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
   .card-title { font-size: 0.85rem !important; margin-bottom: 2px !important; }
   .card-address, .card-obs { font-size: 0.72rem !important; margin-top: 2px !important; }
   .card-top { margin-bottom: 3px !important; }
+
+  .imprimindo-tudo .print-day-title:not(:first-child) { page-break-before: always; }
 }
+
+.print-day-title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 6px;
+  margin: 16px 0 10px;
+  border-bottom: 2px solid var(--border-color);
+}
+.print-day-title:first-child { margin-top: 0; }

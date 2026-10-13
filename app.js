@@ -123,6 +123,18 @@ async function startApp() {
   await loadAllData(true);
 }
 
+async function carregarEuroMedio() {
+  const { data, error } = await _supabase.from('configuracoes').select('valor').eq('chave', 'euro_medio').maybeSingle();
+  if (!error && data && data.valor) {
+    const v = parseFloat(data.valor);
+    if (!isNaN(v) && v > 0) euroMedio = v;
+  }
+  const elOrc = document.getElementById('euro-input');
+  const elGas = document.getElementById('euro-input-gastos');
+  if (elOrc) elOrc.value = euroMedio;
+  if (elGas) elGas.value = euroMedio;
+}
+
 async function loadAllData(isFirstLoad = false) {
   const { data: rot, error: errRot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
   const { data: orc, error: errOrc } = await _supabase.from('orcamento').select('*');
@@ -131,6 +143,8 @@ async function loadAllData(isFirstLoad = false) {
   checkError(errRot, 'carregar o roteiro');
   checkError(errOrc, 'carregar o orçamento');
   checkError(errGas, 'carregar os gastos');
+
+  await carregarEuroMedio();
 
   roteiroData = rot || [];
   orcamentoData = (orc || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
@@ -505,6 +519,112 @@ function editRoteiro(id) {
   document.getElementById("modal-roteiro").classList.add("active");
 }
 
+function renderItemCardHtml(item) {
+  let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
+  let funcVal = item.funcionamento || item.horario || "";
+
+  if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
+    let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
+    let tipoTransporte = catDisplay === "AEROPORTO" ? "aviao" : "trem";
+    const isFeitoTrem = item.feito ? 'feito' : '';
+    const btnFeitoClassTrem = item.feito ? 'active' : '';
+    return `
+      <div class="train-strip ${isFeitoTrem}" data-id="${item.id}" style="--bar-color: var(--icon-${tipoTransporte});">
+        <div class="train-info">
+          <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
+          <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
+          ${item.obs ? `<div class="card-obs" style="--obs-color: var(--icon-${tipoTransporte});"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
+        </div>
+        <div class="action-group" style="display:flex; gap:4px;">
+          <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
+          <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
+        </div>
+      </div>`;
+  }
+
+  let catBg = "var(--cat-default)";
+  if(catDisplay === "MUSEU") catBg = "var(--cat-museu)";
+  if(catDisplay === "HOTEL") catBg = "var(--cat-hotel)";
+  if(catDisplay === "RESTAURANTE") catBg = "var(--cat-restaurante)";
+  if(catDisplay === "DESTAQUE") catBg = "var(--cat-destaque)";
+  if(catDisplay === "PARQUE") catBg = "var(--cat-parque)";
+  if(catDisplay === "LOJA") catBg = "var(--cat-loja)";
+  if(catDisplay === "OUTRO") catBg = "var(--cat-outro)";
+
+  const isFeito = item.feito ? 'feito' : '';
+  const btnFeitoClass = item.feito ? 'active' : '';
+  const horaStr = item.hora ? item.hora.trim() : "--:--";
+
+  // Tratamento contra aspas para proteger a execução de funções inline no HTML
+  const linkSafe = (item.link || '').replace(/'/g, "\\'");
+  const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
+  const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
+
+  return `
+    <div class="card ${isFeito}" data-id="${item.id}" style="--bar-color: ${catBg};">
+      <div class="card-agenda-layout">
+        <div class="card-time-col">
+          <span class="card-time-text">${horaStr}</span>
+        </div>
+        <div class="card-body-col">
+          <div class="card-top">
+            <span class="badge-cat" data-cat="${catDisplay}" style="background: ${catBg}">${catDisplay}</span>
+            <span class="card-cost" style="color: ${catBg};">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
+          </div>
+          <div class="card-title">${item.atracao}</div>
+          ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
+          ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao.toUpperCase() : ''}</div>` : ''}
+          ${item.obs ? `<div class="card-obs" style="--obs-color: ${catBg};"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
+          
+          <div class="card-actions">
+            <div class="action-group">
+               <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
+               <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>
+               <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
+               <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+               <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Monta todos os dias em sequência no mesmo container da timeline, imprime, e depois
+// volta pro dia normalmente selecionado. Ignora os filtros de cidade/"O Que Falta"
+// de propósito — a ideia é um roteiro completo pra levar impresso, com tudo.
+function imprimirRoteiroCompleto() {
+  const container = document.getElementById("timeline-container");
+  if (!container) return;
+
+  const diasComItem = [...new Set(roteiroData.map(item => item.dia).filter(Boolean))]
+    .sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+  const diasCanonicos = gerarTodosDiasDaViagem(diasComItem);
+
+  let html = '';
+  diasCanonicos.forEach(diaCanonico => {
+    const itensDoDia = roteiroData
+      .filter(i => mesmoDia(i.dia, diaCanonico))
+      .sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+    if (itensDoDia.length === 0) return;
+
+    const formatted = formatDayLabel(diaCanonico);
+    html += `<div class="print-day-title">${formatted.full}</div>`;
+    itensDoDia.forEach(item => { html += renderItemCardHtml(item); });
+  });
+
+  const original = container.innerHTML;
+  container.innerHTML = html;
+  document.body.classList.add('imprimindo-tudo');
+
+  window.print();
+
+  container.innerHTML = original;
+  document.body.classList.remove('imprimindo-tudo');
+}
+
 function renderTimeline() {
   const container = document.getElementById("timeline-container");
   if(!container) return;
@@ -516,79 +636,7 @@ function renderTimeline() {
   
   filtered.sort((a,b) => (a.ordem || 99) - (b.ordem || 99));
 
-  filtered.forEach(item => {
-    let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
-    let funcVal = item.funcionamento || item.horario || "";
-
-    if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
-      let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
-      let tipoTransporte = catDisplay === "AEROPORTO" ? "aviao" : "trem";
-      const isFeitoTrem = item.feito ? 'feito' : '';
-      const btnFeitoClassTrem = item.feito ? 'active' : '';
-      container.innerHTML += `
-        <div class="train-strip ${isFeitoTrem}" data-id="${item.id}" style="--bar-color: var(--icon-${tipoTransporte});">
-          <div class="train-info">
-            <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
-            <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
-            ${item.obs ? `<div class="card-obs" style="--obs-color: var(--icon-${tipoTransporte});"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
-          </div>
-          <div class="action-group" style="display:flex; gap:4px;">
-            <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-            <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
-            <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
-          </div>
-        </div>`;
-      return;
-    }
-
-    let catBg = "var(--cat-default)";
-    if(catDisplay === "MUSEU") catBg = "var(--cat-museu)";
-    if(catDisplay === "HOTEL") catBg = "var(--cat-hotel)";
-    if(catDisplay === "RESTAURANTE") catBg = "var(--cat-restaurante)";
-    if(catDisplay === "DESTAQUE") catBg = "var(--cat-destaque)";
-    if(catDisplay === "PARQUE") catBg = "var(--cat-parque)";
-    if(catDisplay === "LOJA") catBg = "var(--cat-loja)";
-    if(catDisplay === "OUTRO") catBg = "var(--cat-outro)";
-
-    const isFeito = item.feito ? 'feito' : '';
-    const btnFeitoClass = item.feito ? 'active' : '';
-    const horaStr = item.hora ? item.hora.trim() : "--:--";
-
-    // Tratamento contra aspas para proteger a execução de funções inline no HTML
-    const linkSafe = (item.link || '').replace(/'/g, "\\'");
-    const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
-    const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
-
-    container.innerHTML += `
-      <div class="card ${isFeito}" data-id="${item.id}" style="--bar-color: ${catBg};">
-        <div class="card-agenda-layout">
-          <div class="card-time-col">
-            <span class="card-time-text">${horaStr}</span>
-          </div>
-          <div class="card-body-col">
-            <div class="card-top">
-              <span class="badge-cat" data-cat="${catDisplay}" style="background: ${catBg}">${catDisplay}</span>
-              <span class="card-cost" style="color: ${catBg};">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
-            </div>
-            <div class="card-title">${item.atracao}</div>
-            ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
-            ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao.toUpperCase() : ''}</div>` : ''}
-            ${item.obs ? `<div class="card-obs" style="--obs-color: ${catBg};"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
-            
-            <div class="card-actions">
-              <div class="action-group">
-                 <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-                 <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>
-                 <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
-                 <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-                 <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-  });
+  filtered.forEach(item => { container.innerHTML += renderItemCardHtml(item); });
 
   if (sortableInstance) {
     sortableInstance.destroy();
@@ -908,7 +956,7 @@ async function calcularOrdemInsercao(payload) {
   return ordemDoNovo;
 }
 
-function updateEuro(origemId) {
+async function updateEuro(origemId) {
   const idUsado = origemId || "euro-input";
   euroMedio = parseFloat(document.getElementById(idUsado).value) || 5.98;
 
@@ -917,6 +965,9 @@ function updateEuro(origemId) {
   if (outroEl) outroEl.value = euroMedio;
 
   renderOrcamento(); renderGastos();
+
+  const { error } = await _supabase.from('configuracoes').upsert({ chave: 'euro_medio', valor: String(euroMedio) }, { onConflict: 'chave' });
+  checkError(error, 'salvar o euro médio pra outros aparelhos');
 }
 
 function renderOrcamento() {
@@ -1728,4 +1779,5 @@ window.refreshVinculoOptions = refreshVinculoOptions;
 window.handleImportFile = handleImportFile;
 window.confirmarImportacao = confirmarImportacao;
 window.abrirRotasDoDia = abrirRotasDoDia;
+window.imprimirRoteiroCompleto = imprimirRoteiroCompleto;
 window.irParaDiaNoRoteiro = irParaDiaNoRoteiro;
