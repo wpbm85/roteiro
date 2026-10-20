@@ -39,6 +39,19 @@ const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
 
 let currentOrcCityFilter = "TODAS";
 let currentGasCatFilter = "TODAS";
+async function toggleSelecaoRota(id) {
+  const item = roteiroData.find(i => i.id === id);
+  if (!item) return;
+  const novoValor = !item.incluir_rota;
+  item.incluir_rota = novoValor;
+  renderTimeline();
+
+  const { error } = await _supabase.from('roteiro').update({ incluir_rota: novoValor }).eq('id', id);
+  if (checkError(error, 'salvar a seleção de rota deste item')) {
+    item.incluir_rota = !novoValor;
+    renderTimeline();
+  }
+}
 
 function normalizeStr(str) {
   if (!str) return "";
@@ -441,6 +454,12 @@ function openMaps(link, atracao, endereco) {
 // com qualquer atração, já que um link de Maps individual não dá pra "encadear" em rota.
 function abrirRotasDoDia() {
   let itensDoDia = roteiroData.filter(i => mesmoDia(i.dia, currentSelectedDay) && !i.feito);
+
+  // Se algum item do dia estiver marcado com o botão de seleção, usa só esses;
+  // senão, mantém o comportamento de sempre (todos os itens não concluídos do dia).
+  const selecionadosDoDia = itensDoDia.filter(i => i.incluir_rota);
+  if (selecionadosDoDia.length > 0) itensDoDia = selecionadosDoDia;
+
   itensDoDia.sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
 
   const paradas = itensDoDia
@@ -537,6 +556,7 @@ function renderItemCardHtml(item) {
         </div>
         <div class="action-group" style="display:flex; gap:4px;">
           <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
+          <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
           <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
           <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
           <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -581,7 +601,8 @@ function renderItemCardHtml(item) {
           <div class="card-actions">
             <div class="action-group">
                <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-               <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Google Maps"><i class="fa-solid fa-map-location-dot"></i></button>
+               <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
+               <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Abrir no Google Maps"><i class="fa-solid fa-map-pin"></i></button>
                <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
                <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -1779,5 +1800,6 @@ window.refreshVinculoOptions = refreshVinculoOptions;
 window.handleImportFile = handleImportFile;
 window.confirmarImportacao = confirmarImportacao;
 window.abrirRotasDoDia = abrirRotasDoDia;
+window.toggleSelecaoRota = toggleSelecaoRota;
 window.imprimirRoteiroCompleto = imprimirRoteiroCompleto;
 window.irParaDiaNoRoteiro = irParaDiaNoRoteiro;
