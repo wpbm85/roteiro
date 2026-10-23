@@ -1505,7 +1505,9 @@ const ALIASES_ROTEIRO = {
   custo: ['custo'],
   link: ['link'],
   obs: ['obs', 'observacoes', 'observações'],
-  feito: ['feito']
+  feito: ['feito'],
+  destaque_calendario: ['destaque_calendario', 'destaque calendario', 'destacar no calendario'],
+  incluir_rota: ['incluir_rota', 'incluir rota']
 };
 
 const ALIASES_ORCAMENTO = {
@@ -1535,6 +1537,16 @@ function normalizeHeader(str) {
 
 function linhaEstaVazia(valor) {
   return valor === null || valor === undefined || valor.toString().trim() === '';
+}
+
+function paraBooleano(valor) {
+  if (typeof valor === 'boolean') return valor;
+  if (typeof valor === 'number') return valor === 1;
+  if (typeof valor === 'string') {
+    const v = valor.trim().toUpperCase();
+    return v === 'TRUE' || v === 'VERDADEIRO' || v === '1' || v === 'SIM';
+  }
+  return false;
 }
 
 function paraNumero(valor) {
@@ -1634,7 +1646,9 @@ function converterLinhaRoteiro(row, campos, avisos, numeroLinha) {
     custo: campos.custo ? paraNumero(row[campos.custo]) : 0,
     link: campos.link ? (row[campos.link] || '').toString().trim() : '',
     obs: campos.obs ? (row[campos.obs] || '').toString().trim() : '',
-    feito: false
+    feito: campos.feito ? paraBooleano(row[campos.feito]) : false,
+    destaque_calendario: campos.destaque_calendario ? paraBooleano(row[campos.destaque_calendario]) : false,
+    incluir_rota: campos.incluir_rota ? paraBooleano(row[campos.incluir_rota]) : false
   };
 }
 
