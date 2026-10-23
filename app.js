@@ -1589,6 +1589,11 @@ function excelValorParaData(valor) {
 }
 
 function formatarDiaTexto(valor) {
+  // Se já vier como "DD/MM ..." (texto puro, sem ano) — é o formato que o próprio app usa e
+  // exporta — usa direto, só recalculando a abreviação do dia da semana certa.
+  if (typeof valor === 'string' && /^\d{2}\/\d{2}\b/.test(valor.trim())) {
+    return canonicalizarDia(valor.trim());
+  }
   const d = excelValorParaData(valor);
   if (!d) return null;
   const dd = String(d.getDate()).padStart(2, '0');
