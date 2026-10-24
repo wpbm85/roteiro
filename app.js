@@ -542,32 +542,8 @@ function renderItemCardHtml(item) {
   let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
   let funcVal = item.funcionamento || item.horario || "";
 
-  if (catDisplay === "ESTAÇÃO" || catDisplay === "TREM" || catDisplay === "AEROPORTO") {
-    let iconClass = catDisplay === "AEROPORTO" ? "fa-plane-departure" : "fa-train";
-    let tipoTransporte = catDisplay === "AEROPORTO" ? "aviao" : "trem";
-    const isFeitoTrem = item.feito ? 'feito' : '';
-    const btnFeitoClassTrem = item.feito ? 'active' : '';
-    return `
-      <div class="train-strip ${isFeitoTrem}" data-id="${item.id}" style="--bar-color: var(--icon-${tipoTransporte});">
-        <div class="train-info">
-          <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao} ${item.custo ? `<span style="color:var(--icon-${tipoTransporte}); font-weight:800;">€ ${parseFloat(item.custo).toFixed(2)}</span>` : ''}</span>
-          <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
-          ${item.obs ? `<div class="card-obs" style="--obs-color: var(--icon-${tipoTransporte});"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
-        </div>
-        <div class="card-actions">
-          <div class="action-group">
-            <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
-            <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
-            <button class="btn-act" onclick="openMaps('${(item.link || '').replace(/'/g, "\\'")}', '${(item.atracao || '').replace(/'/g, "\\'")}', '${(item.endereco || item.regiao || '').replace(/'/g, "\\'")}')" title="Abrir no Google Maps"><i class="fa-solid fa-map-pin"></i></button>
-            <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
-            <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
-          </div>
-        </div>
-      </div>`;
-  }
-
   let catBg = "var(--cat-default)";
+  let iconeTransporte = null; // ícone extra no título, só pra trem/avião
   if(catDisplay === "MUSEU") catBg = "var(--cat-museu)";
   if(catDisplay === "HOTEL") catBg = "var(--cat-hotel)";
   if(catDisplay === "RESTAURANTE") catBg = "var(--cat-restaurante)";
@@ -575,6 +551,8 @@ function renderItemCardHtml(item) {
   if(catDisplay === "PARQUE") catBg = "var(--cat-parque)";
   if(catDisplay === "LOJA") catBg = "var(--cat-loja)";
   if(catDisplay === "OUTRO") catBg = "var(--cat-outro)";
+  if(catDisplay === "AEROPORTO") { catBg = "var(--icon-aviao)"; iconeTransporte = "fa-plane-departure"; }
+  if(catDisplay === "ESTAÇÃO") { catBg = "var(--icon-trem)"; iconeTransporte = "fa-train"; }
 
   const isFeito = item.feito ? 'feito' : '';
   const btnFeitoClass = item.feito ? 'active' : '';
@@ -596,7 +574,7 @@ function renderItemCardHtml(item) {
             <span class="badge-cat" data-cat="${catDisplay}" style="background: ${catBg}">${catDisplay}</span>
             <span class="card-cost" style="color: ${catBg};">${item.custo ? '€ ' + parseFloat(item.custo).toFixed(2) : ''}</span>
           </div>
-          <div class="card-title">${item.atracao}</div>
+          <div class="card-title">${iconeTransporte ? `<i class="fa-solid ${iconeTransporte}"></i> ` : ''}${item.atracao}</div>
           ${funcVal ? `<div class="card-address"><i class="fa-regular fa-clock"></i> Funcionamento: ${funcVal}</div>` : ''}
           ${item.endereco || item.regiao ? `<div class="card-address"><i class="fa-solid fa-location-dot"></i> ${item.endereco || ''} ${item.regiao ? '• '+item.regiao.toUpperCase() : ''}</div>` : ''}
           ${item.obs ? `<div class="card-obs" style="--obs-color: ${catBg};"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}

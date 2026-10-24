@@ -233,23 +233,8 @@ header {
 .btn-act.del-btn:hover { color: var(--accent-red); border-color: var(--accent-red); }
 .drag-handle { touch-action: none; cursor: grab; }
 
-.train-strip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-left: 4px solid var(--bar-color, var(--accent-blue));
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-}
-.train-strip .btn-act { width: 28px; height: 28px; font-size: 0.78rem; }
-.train-title { font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 2px; }
 i[data-transporte="aviao"] { color: var(--icon-aviao); }
 i[data-transporte="trem"] { color: var(--icon-trem); }
-.train-route { font-size: 0.75rem; color: var(--text-muted); }
-.train-strip.feito { opacity: 0.55; }
-.train-strip.feito .train-title,
-.train-strip.feito .train-route,
-.train-strip.feito .card-obs { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 
 .euro-config {
   background: var(--bg-card);
@@ -583,7 +568,7 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
   i[data-transporte="trem"]  { color: #ca8a04 !important; } /* amarelo puro some no papel branco — usei um tom mais escuro pra ficar legível */
 
   /* Caixas mais compactas pra impressão */
-  .card, .train-strip, .list-item {
+  .card, .list-item {
     padding: 8px 10px !important;
     margin-bottom: 6px !important;
     border-radius: 8px !important;
