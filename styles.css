@@ -240,10 +240,8 @@ header {
   border-radius: 12px;
   padding: 12px 16px;
   margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
+.train-strip .btn-act { width: 28px; height: 28px; font-size: 0.78rem; }
 .train-title { font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 2px; }
 i[data-transporte="aviao"] { color: var(--icon-aviao); }
 i[data-transporte="trem"] { color: var(--icon-trem); }
