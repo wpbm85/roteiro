@@ -550,13 +550,14 @@ function renderItemCardHtml(item) {
     return `
       <div class="train-strip ${isFeitoTrem}" data-id="${item.id}" style="--bar-color: var(--icon-${tipoTransporte});">
         <div class="train-info">
-          <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao}</span>
+          <span class="train-title"><i class="fa-solid ${iconClass}" data-transporte="${tipoTransporte}"></i> ${item.atracao} ${item.custo ? `<span style="color:var(--icon-${tipoTransporte}); font-weight:800;">€ ${parseFloat(item.custo).toFixed(2)}</span>` : ''}</span>
           <div class="train-route"><i class="fa-regular fa-clock"></i> ${item.hora || funcVal || 'Horário a definir'} ${item.regiao ? '• ' + item.regiao.toUpperCase() : ''}</div>
           ${item.obs ? `<div class="card-obs" style="--obs-color: var(--icon-${tipoTransporte});"><i class="fa-solid fa-star"></i> ${item.obs}</div>` : ''}
         </div>
         <div class="action-group" style="display:flex; gap:4px;">
           <button class="btn-act done-btn ${btnFeitoClassTrem}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
           <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
+          <button class="btn-act" onclick="openMaps('${(item.link || '').replace(/'/g, "\\'")}', '${(item.atracao || '').replace(/'/g, "\\'")}', '${(item.endereco || item.regiao || '').replace(/'/g, "\\'")}')" title="Abrir no Google Maps"><i class="fa-solid fa-map-pin"></i></button>
           <button class="btn-act" onclick="editRoteiro(${item.id})"><i class="fa-solid fa-pen"></i></button>
           <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')"><i class="fa-solid fa-trash"></i></button>
           <button class="btn-act drag-handle"><i class="fa-solid fa-grip-vertical"></i></button>
