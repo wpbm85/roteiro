@@ -318,6 +318,7 @@ function openContextModal() {
   if (currentTab === 'roteiro') {
     document.getElementById("rot-id").value = "";
     document.getElementById("form-roteiro").reset();
+    document.getElementById("btn-salvar-copia-roteiro").style.display = "none";
 
     if (currentSelectedDay) document.getElementById("rot-dia").value = currentSelectedDay;
 
@@ -535,6 +536,7 @@ function editRoteiro(id) {
   document.getElementById("rot-link").value = item.link || "";
   document.getElementById("rot-obs").value = item.obs || "";
   document.getElementById("rot-destaque-calendario").checked = !!item.destaque_calendario;
+  document.getElementById("btn-salvar-copia-roteiro").style.display = "block";
   document.getElementById("modal-roteiro").classList.add("active");
 }
 
@@ -863,10 +865,10 @@ function canonicalizarDia(diaBruto) {
   return `${chave} ${DIAS_SEMANA_PT[d.getDay()]}`;
 }
 
-async function handleRoteiroSubmit(e) {
+async function handleRoteiroSubmit(e, salvarComoCopia = false) {
   if(e) e.preventDefault();
   const elId = document.getElementById("rot-id");
-  const idStr = elId ? elId.value : "";
+  const idStr = salvarComoCopia ? "" : (elId ? elId.value : "");
   let catVal = document.getElementById("rot-categoria").value;
 
   if (idStr) {

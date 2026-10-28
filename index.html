@@ -172,7 +172,10 @@
           <input type="checkbox" id="rot-destaque-calendario" style="width:18px; height:18px;">
           <label for="rot-destaque-calendario" style="margin:0;">★ Destacar no Calendário</label>
         </div>
-        <button type="submit" class="submit-btn">Salvar</button>
+        <div style="display:flex; gap:8px;">
+          <button type="submit" class="submit-btn" style="flex:1;">Salvar</button>
+          <button type="button" id="btn-salvar-copia-roteiro" class="submit-btn" style="flex:1; display:none; background:var(--text-muted);" onclick="handleRoteiroSubmit(null, true)">Salvar Cópia</button>
+        </div>
       </form>
     </div>
   </div>
@@ -256,6 +259,6 @@
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
   </nav>
 
-  <script src="app.js?v=11.4"></script>
+  <script src="app.js?v=11.5"></script>
 </body>
 </html>
