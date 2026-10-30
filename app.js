@@ -20,7 +20,7 @@ const DIAS_TRADUCAO = {
 };
 
 const CIDADES_FIXAS = ["GERAL", "AMSTERDAM", "BRUXELAS", "GENT", "BRUGES", "PARIS", "ROTERDAM", "DELFT", "HAIA"];
-const CATEGORIAS_ROTEIRO = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
+const CATEGORIAS_ROTEIRO = ["AEROPORTO", "DESTAQUE", "ESTAÇÃO", "TREM", "HOTEL", "LOJA", "MUSEU", "PARQUE", "RESTAURANTE", "OUTRO"];
 const CATEGORIAS_FINANCEIRO = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESSOS", "TRANSPORTE", "COMPRAS", "MERCADO", "OUTROS"];
 
 // Usado só pra mostrar uma referência informativa (não soma automático no orçamento).
@@ -34,6 +34,7 @@ const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
   'HOTEL': 'HOTEL',
   'AEROPORTO': 'TRANSPORTE',
   'ESTAÇÃO': 'TRANSPORTE',
+  'TREM': 'TREM',
   'OUTRO': 'OUTROS'
 };
 
@@ -554,7 +555,7 @@ function renderItemCardHtml(item) {
   if(catDisplay === "LOJA") catBg = "var(--cat-loja)";
   if(catDisplay === "OUTRO") catBg = "var(--cat-outro)";
   if(catDisplay === "AEROPORTO") { catBg = "var(--icon-aviao)"; iconeTransporte = "fa-plane-departure"; }
-  if(catDisplay === "ESTAÇÃO") { catBg = "var(--icon-trem)"; iconeTransporte = "fa-train"; }
+  if(catDisplay === "ESTAÇÃO" || catDisplay === "TREM") { catBg = "var(--icon-trem)"; iconeTransporte = "fa-train"; }
 
   const isFeito = item.feito ? 'feito' : '';
   const btnFeitoClass = item.feito ? 'active' : '';
@@ -714,7 +715,8 @@ function construirDadosCalendario() {
     // estação de partida dentro da própria cidade). Item comum só cria bloco novo se a cidade mudou.
     const blocos = [];
     itens.forEach(item => {
-      const ehTransporte = item.categoria === 'AEROPORTO' || item.categoria === 'ESTAÇÃO';
+      const categoriaItem = (item.categoria || '').trim().toUpperCase();
+      const ehTransporte = ['AEROPORTO', 'ESTAÇÃO', 'TREM'].includes(categoriaItem);
       if (ehTransporte && !item.destaque_calendario) return;
 
       let cid = (item.cidade || '').trim().toUpperCase();
@@ -723,14 +725,18 @@ function construirDadosCalendario() {
       if (ehTransporte) {
         let rotulo = cid, icone = 'fa-train';
         if (cid === 'GERAL' && item.categoria === 'AEROPORTO') { rotulo = 'VOO'; icone = 'fa-plane'; }
-        else if (cid === 'GERAL' && item.categoria === 'ESTAÇÃO') { rotulo = 'TREM'; icone = 'fa-train'; }
-        else if (item.categoria === 'AEROPORTO') { icone = 'fa-plane'; }
+        else if (cid === 'GERAL' && (categoriaItem === 'ESTAÇÃO' || categoriaItem === 'TREM')) { rotulo = 'TREM'; icone = 'fa-train'; }
+        else if (categoriaItem === 'AEROPORTO') { icone = 'fa-plane'; }
         blocos.push({ cid, rotulo, icone, hora: item.hora || '', transporte: true });
         return;
       }
 
+      // Itens comuns podem alternar cidade por erro de cadastro ou por atrações duplicadas.
+      // Cada cidade comum aparece no máximo uma vez no dia; retornos reais devem ser
+      // representados por um item de transporte (ESTAÇÃO/TREM) destacado no calendário.
+      if (blocos.some(b => b.cid === cid)) return;
       const ultimo = blocos[blocos.length - 1];
-      if (ultimo && ultimo.cid === cid) return; // mesma cidade do bloco anterior, ignora repetição
+      if (ultimo && ultimo.cid === cid) return;
       blocos.push({ cid, rotulo: cid, icone: null, hora: '', transporte: false });
     });
 
@@ -784,7 +790,7 @@ function renderCalendario() {
   const destaquesPorDia = {};
   roteiroData.forEach(item => {
     if (!item.dia || !item.destaque_calendario) return;
-    if (item.categoria === 'AEROPORTO' || item.categoria === 'ESTAÇÃO') return;
+    if (['AEROPORTO', 'ESTAÇÃO', 'TREM'].includes((item.categoria || '').trim().toUpperCase())) return;
     const m = item.dia.match(/(\d{2})\/(\d{2})/);
     if (!m) return;
     const chave = `${m[1]}/${m[2]}`;
@@ -1088,7 +1094,21 @@ function renderOrcamento() {
 
     let bodyHtml = itensOrdenados.map(item => renderOrcamentoItemHtml(item)).join('');
 
-    const cidadesPresentes = [...new Set(itensCategoria.map(i => i.cidadeName))].sort(ordenarPorListaFixa(CIDADES_FIXAS));
+    // Inclui também cidades que tenham custos no roteiro, mesmo sem item de orçamento
+    // cadastrado naquela cidade/categoria (ex.: museu em HAIA ainda sem previsão própria).
+    const categoriaNorm = (cat || '').trim().toUpperCase();
+    const cidadesComReferencia = roteiroData
+      .filter(r => {
+        const categoriaRoteiro = (r.categoria || '').trim().toUpperCase();
+        const categoriaMapeada = MAPA_CATEGORIA_ROTEIRO_FINANCEIRO[categoriaRoteiro === 'MARCO' ? 'DESTAQUE' : categoriaRoteiro];
+        const custo = typeof r.custo === 'number' ? r.custo : paraNumero(r.custo);
+        return custo > 0 && categoriaMapeada === categoriaNorm;
+      })
+      .map(r => (r.cidade || 'GERAL').trim().toUpperCase());
+    const cidadesPresentes = [...new Set([
+      ...itensCategoria.map(i => i.cidadeName),
+      ...cidadesComReferencia
+    ])].sort(ordenarPorListaFixa(CIDADES_FIXAS));
     cidadesPresentes.forEach(cid => {
       const ref = getReferenciaRoteiro(cat, cid);
       if (ref.total > 0) {
@@ -1138,14 +1158,18 @@ function renderOrcamento() {
 function getReferenciaRoteiro(categoriaFinanceira, cidade) {
   let total = 0;
   let nomes = [];
+  const categoriaFinanceiraNorm = (categoriaFinanceira || '').trim().toUpperCase();
+  const cidadeNorm = (cidade || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
   roteiroData.forEach(r => {
-    const custo = parseFloat(r.custo) || 0;
-    if (custo <= 0) return;
-    const catRoteiro = r.categoria === 'MARCO' ? 'DESTAQUE' : r.categoria;
+    // Aceita custos numéricos e textos importados como "€ 12,50".
+    const custoBruto = r.custo;
+    const custo = typeof custoBruto === 'number' ? custoBruto : paraNumero(custoBruto);
+    if (!(custo > 0)) return;
+    const catRoteiro = (r.categoria || '').trim().toUpperCase() === 'MARCO' ? 'DESTAQUE' : (r.categoria || '').trim().toUpperCase();
     const catMapeada = MAPA_CATEGORIA_ROTEIRO_FINANCEIRO[catRoteiro];
-    if (catMapeada !== categoriaFinanceira) return;
-    const cidadeRoteiro = (r.cidade || '').trim().toUpperCase();
-    if (cidadeRoteiro !== cidade) return;
+    if (catMapeada !== categoriaFinanceiraNorm) return;
+    const cidadeRoteiro = (r.cidade || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    if (cidadeRoteiro !== cidadeNorm) return;
     total += custo;
     nomes.push(r.atracao);
   });

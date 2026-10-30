@@ -12,7 +12,7 @@ Cole este documento junto com o export da planilha (Google Sheets) sempre que pe
 | `cidade` | text | Um destes, maiúsculo: `GERAL, AMSTERDAM, BRUXELAS, GENT, BRUGES, PARIS, ROTERDAM, DELFT, HAIA` |
 | `regiao` | text | Livre (bairro/zona) |
 | `ordem` | int | Posição dentro do dia (1, 2, 3...) |
-| `categoria` | text | Um destes: `AEROPORTO, DESTAQUE, ESTAÇÃO, HOTEL, LOJA, MUSEU, PARQUE, RESTAURANTE, OUTRO` |
+| `categoria` | text | Um destes: `AEROPORTO, DESTAQUE, ESTAÇÃO, TREM, HOTEL, LOJA, MUSEU, PARQUE, RESTAURANTE, OUTRO` |
 | `atracao` | text | Nome da atração/atividade |
 | `funcionamento` | text | Livre, ex: `"9-18h"` |
 | `endereco` | text | Livre |
@@ -23,6 +23,8 @@ Cole este documento junto com o export da planilha (Google Sheets) sempre que pe
 | `hora` | text | Formato `"HH:MM"`, ex: `"09:30"` |
 
 ---
+
+Mapeamento informativo para o orçamento: `ESTAÇÃO` → `TRANSPORTE`; `TREM` → `TREM`; `MUSEU` e `PARQUE` → `INGRESSOS`. O vínculo é apenas uma referência visual, não soma automaticamente os custos do roteiro ao orçamento.
 
 ## Tabela `orcamento`
 
