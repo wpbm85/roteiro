@@ -27,8 +27,8 @@ const CATEGORIAS_FINANCEIRO = ["VOO", "TREM", "HOTEL", "ALIMENTAÇÃO", "INGRESS
 const MAPA_CATEGORIA_ROTEIRO_FINANCEIRO = {
   'MUSEU': 'INGRESSOS',
   'PARQUE': 'INGRESSOS',
-  'DESTAQUE': 'OUTROS',
-  'MARCO': 'OUTROS', // valor legado de categoria, tratado como DESTAQUE
+  'DESTAQUE': 'INGRESSOS',
+  'MARCO': 'INGRESSOS', // valor legado de categoria, tratado como DESTAQUE
   'RESTAURANTE': 'ALIMENTAÇÃO',
   'LOJA': 'COMPRAS',
   'HOTEL': 'HOTEL',
@@ -745,7 +745,16 @@ function construirDadosCalendario() {
       // Se o primeiro bloco do dia já É a cidade de ontem mostrada sem ícone (dia parado, ou uma
       // atração comum logo cedo na mesma cidade), não repete. Senão, mostra a cidade de origem
       // primeiro — mesmo que o dia comece direto com um trem/avião — pra nunca faltar essa info.
-      const primeiroJaMostraOrigem = !blocos[0].transporte && blocos[0].cid === cidadeAnterior;
+      // Se o dia começa com hospedagem na cidade atual, ela já confirma a base do dia.
+      // Não carregar uma cidade anterior desatualizada (ex.: HAIA no dia seguinte à chegada
+      // a ROTERDAM, quando o roteiro de 25/05 termina com a transição ferroviária).
+      const primeiraCidade = blocos[0].cid;
+      const diaJaTemHotelNaPrimeiraCidade = itens.some(i =>
+        (i.categoria || '').trim().toUpperCase() === 'HOTEL' &&
+        (i.cidade || '').trim().toUpperCase() === primeiraCidade
+      );
+      const primeiroJaMostraOrigem = !blocos[0].transporte &&
+        (primeiraCidade === cidadeAnterior || diaJaTemHotelNaPrimeiraCidade);
       if (cidadeAnterior && !primeiroJaMostraOrigem) {
         segmentos.push({ hora: '', cidade: cidadeAnterior, icone: null });
       }
