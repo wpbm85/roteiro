@@ -15,6 +15,13 @@
 - Filtros da aba no formato de chips (igual ao Orçamento); ao vir pelo clipe, o filtro aparece como uma etiqueta compacta com ×.
 - **Requer 1 SQL extra:** `SUPABASE_DOCUMENTOS_EDICAO.sql` (permissão de UPDATE na tabela). Quem ainda não instalou nada roda só o `SUPABASE_DOCUMENTOS.sql`, que já o inclui.
 
+## Ajustes desta versão
+- Clipe ativo no roteiro: preenchido com a cor da categoria do cartão (igual ao botão de rota).
+- Aba Documentos: removido o quadro descritivo; ícones dos arquivos usam a cor da categoria (INGRESSOS = cor de DESTAQUE).
+- **To-do list:** ícone de check no cabeçalho, entre Excel e Sair (clique de novo para voltar à aba anterior). Itens riscam e descem para "Concluídos"; é possível editar (título, data-alvo, observação) e excluir.
+- Na primeira abertura, a lista é preenchida uma única vez com sugestões: ETIAS (Carol), atualização de valores de transporte e, a partir do roteiro, bilhetes de trem e ingressos de museus/destaques com custo e sem documento anexado. As datas-alvo são sugestões editáveis (45 dias antes da visita para ingressos, 60 para trens e ETIAS).
+- **Requer 1 SQL extra:** `SUPABASE_TODO.sql`.
+
 ## Instalação Supabase (obrigatória antes do uso)
 1. Abra o projeto Supabase usado pelo app.
 2. Entre em **SQL Editor** → **New query**.

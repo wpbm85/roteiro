@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=11.0">
+  <link rel="stylesheet" href="styles.css?v=12.0">
 </head>
 <body>
 
@@ -55,6 +55,7 @@
       <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;" onchange="handleImportFile(event)">
       <button class="icon-btn" onclick="document.getElementById('import-file-input').click()" title="Importar Excel"><i class="fa-solid fa-file-import" style="color: #2563eb;"></i></button>
       <button class="icon-btn" onclick="exportToXLSX()" title="Exportar Excel"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i></button>
+      <button class="icon-btn" id="btn-todo" onclick="abrirTodo()" title="To-do list"><i class="fa-regular fa-square-check" style="color: #fbbf24; font-size: 1rem;"></i><span class="todo-badge" id="todo-badge" style="display:none;"></span></button>
       <button class="icon-btn" onclick="logout()" title="Sair"><i class="fa-solid fa-arrow-right-from-bracket" style="color: #f8fafc;"></i></button>
     </div>
   </header>
@@ -135,11 +136,20 @@
     </section>
 
     <section id="tab-documentos" class="tab-content">
-      <div class="docs-intro card"><div style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-folder-open" style="font-size:1.4rem;color:var(--accent-blue);"></i><div><strong>Documentos da viagem</strong><div style="font-size:.78rem;color:var(--text-muted);">Reservas, bilhetes e comprovantes em armazenamento privado.</div></div></div></div>
       <div class="city-filters" id="docs-cidade-bar"></div>
       <div class="city-filters" id="docs-cat-bar"></div>
       <div id="docs-filtro-vinculo" class="doc-link-filter" style="display:none;"></div>
       <div id="documentos-list" class="list-container"></div>
+    </section>
+
+    <section id="tab-todo" class="tab-content">
+      <div class="todo-head"><strong>To-do list</strong><span id="todo-resumo"></span></div>
+      <form class="todo-add" id="todo-add" onsubmit="adicionarTodo(event)">
+        <input type="text" id="todo-novo" class="form-control" placeholder="Adicionar item…" autocomplete="off" required>
+        <input type="date" id="todo-novo-data" class="form-control" title="Data-alvo (opcional)">
+        <button type="submit" class="todo-add-btn" aria-label="Adicionar"><i class="fa-solid fa-plus"></i></button>
+      </form>
+      <div id="todo-list"></div>
     </section>
   </main>
 
@@ -261,6 +271,19 @@
     </div>
   </div>
 
+  <div class="modal" id="modal-todo">
+    <div class="modal-content">
+      <div class="modal-header"><div class="modal-title">Editar item</div><button class="close-btn" onclick="closeModal('modal-todo')">&times;</button></div>
+      <form onsubmit="salvarEdicaoTodo(event)">
+        <input type="hidden" id="todo-id">
+        <div class="form-group"><label>Item</label><input type="text" id="todo-titulo" class="form-control" required></div>
+        <div class="form-group"><label>Data-alvo (opcional)</label><input type="date" id="todo-data" class="form-control"></div>
+        <div class="form-group"><label>Observação (opcional)</label><input type="text" id="todo-nota" class="form-control"></div>
+        <button type="submit" class="submit-btn">Salvar</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="modal-importar">
     <div class="modal-content" style="max-width:520px;">
       <div class="modal-header">
@@ -283,6 +306,6 @@
     <button class="nav-item" id="nav-btn-documentos" onclick="switchTab('documentos', this)"><i class="fa-solid fa-paperclip nav-icon"></i><span>Documentos</span></button>
   </nav>
 
-  <script src="app.js?v=13.0"></script>
+  <script src="app.js?v=14.0"></script>
 </body>
 </html>

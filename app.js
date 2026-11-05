@@ -15,6 +15,10 @@ let orcamentoData = [];
 let gastosData = [];
 let documentosData = [];
 let documentosDisponiveis = true;
+let todosData = [];
+let todosDisponiveis = true;
+let abaAntesTodo = 'roteiro';
+let todoSemeando = false;
 let filtroDocsCategoria = "TODAS";
 let filtroDocsCidade = "TODAS";
 let filtroDocsRoteiroId = null;
@@ -159,6 +163,7 @@ async function loadAllData(isFirstLoad = false) {
   const { data: orc, error: errOrc } = await _supabase.from('orcamento').select('*');
   const { data: gas, error: errGas } = await _supabase.from('gastos').select('*');
   const { data: docs, error: errDocs } = await _supabase.from('documentos').select('*').order('created_at', { ascending: false });
+  const { data: tds, error: errTodos } = await _supabase.from('todos').select('*');
 
   checkError(errRot, 'carregar o roteiro');
   checkError(errOrc, 'carregar o orçamento');
@@ -172,6 +177,8 @@ async function loadAllData(isFirstLoad = false) {
   orcamentoData = (orc || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
   gastosData = (gas || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
   documentosData = docs || [];
+  todosDisponiveis = !errTodos;
+  todosData = tds || [];
 
   if (isFirstLoad || !currentSelectedDay) {
     autoSelectToday();
@@ -185,6 +192,8 @@ async function loadAllData(isFirstLoad = false) {
   renderOrcamento();
   renderGastos();
   renderDocumentos();
+  renderTodo();
+  garantirTodoInicial();
 }
 
 function formatDayLabel(dayStr) {
@@ -324,8 +333,11 @@ function switchTab(tabName, btn) {
   document.getElementById(`tab-${tabName}`).classList.add("active");
   if (btn) btn.classList.add("active");
   const fab = document.getElementById("fab-btn");
-  if (fab) fab.style.display = tabName === "calendario" ? "none" : "flex";
+  if (fab) fab.style.display = (tabName === "calendario" || tabName === "todo") ? "none" : "flex";
+  const btnTodo = document.getElementById("btn-todo");
+  if (btnTodo) btnTodo.classList.toggle("active", tabName === "todo");
   if (tabName === "documentos") renderDocumentos();
+  if (tabName === "todo") { renderTodo(); window.scrollTo({ top: 0 }); }
 }
 
 function openContextModal() {
@@ -697,6 +709,8 @@ function renderTimeline() {
 const DOC_CATEGORIAS = ['HOTEL', 'INGRESSOS', 'OUTROS', 'TREM', 'VOO'];
 const DOC_CIDADES = ['GERAL', 'AMSTERDAM', 'BRUXELAS', 'GENT', 'BRUGES', 'PARIS', 'ROTERDAM', 'DELFT', 'HAIA'];
 const DOC_CATEGORIAS_ROTEIRO = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'];
+// Cor do ícone do arquivo = cor da categoria equivalente no roteiro (INGRESSOS usa a de DESTAQUE).
+const DOC_COR_CATEGORIA = { HOTEL: 'var(--cat-hotel)', INGRESSOS: 'var(--cat-destaque)', OUTROS: 'var(--cat-outro)', TREM: 'var(--icon-trem)', VOO: 'var(--icon-aviao)' };
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function nomeRoteiro(item) { return `${item.atracao || 'Item sem descrição'}${item.cidade ? ' · '+item.cidade : ''}${item.dia ? ' · '+item.dia : ''} (${item.categoria === 'MARCO' ? 'DESTAQUE' : item.categoria})`; }
 // Lista de vínculo organizada: DATA (cronológica) > CIDADE > ATRAÇÃO.
@@ -802,7 +816,7 @@ function renderDocumentos() {
     const it = d.roteiro_id ? roteiroData.find(i => String(i.id) === String(d.roteiro_id)) : null;
     const img = (d.mime_type || '').startsWith('image/');
     const size = d.tamanho_bytes ? (d.tamanho_bytes / 1048576 >= 1 ? (d.tamanho_bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(d.tamanho_bytes / 1024)) + ' KB') : '';
-    return `<div class="doc-card"><i class="fa-solid ${img ? 'fa-file-image doc-file-icon image' : 'fa-file-pdf doc-file-icon'}"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome || d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it ? ' · ' + escapeHtml(it.atracao) : ''}${size ? ' · ' + size : ''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="editarDocumento('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`;
+    return `<div class="doc-card"><i class="fa-solid ${img ? 'fa-file-image' : 'fa-file-pdf'} doc-file-icon" style="color:${DOC_COR_CATEGORIA[d.categoria] || 'var(--cat-outro)'};"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome || d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it ? ' · ' + escapeHtml(it.atracao) : ''}${size ? ' · ' + size : ''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="editarDocumento('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`;
   }).join('');
 }
 function nomeArquivoSeguro(name) { return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100); }
@@ -871,6 +885,115 @@ async function excluirDocumento(id) {
   const {error:stErr}=await _supabase.storage.from('reservas').remove([doc.caminho_arquivo]);if(stErr)return checkError(stErr,'excluir arquivo');
   const {error}=await _supabase.from('documentos').delete().eq('id',id);if(checkError(error,'excluir registro'))return;
   documentosData=documentosData.filter(d=>String(d.id)!==String(id));renderDocumentos();renderTimeline();
+}
+
+// ===================== TO-DO LIST =====================
+function hojeISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function dataDDMM(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''; }
+function isoMenosDias(iso, dias) { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - dias); return d.toISOString().slice(0, 10); }
+function dataVisitaISO(dia) { const k = diaKeyDDMM(dia); return k ? `2027-${k.slice(3, 5)}-${k.slice(0, 2)}` : null; }
+function atualizarBadgeTodo() {
+  const b = document.getElementById('todo-badge'); if (!b) return;
+  const n = todosDisponiveis ? todosData.filter(t => !t.feito).length : 0;
+  b.textContent = n > 99 ? '99+' : String(n); b.style.display = n ? 'flex' : 'none';
+}
+function renderTodo() {
+  const box = document.getElementById('todo-list'); if (!box) return;
+  atualizarBadgeTodo();
+  const addForm = document.getElementById('todo-add'), resumo = document.getElementById('todo-resumo');
+  if (!todosDisponiveis) {
+    addForm.style.display = 'none'; resumo.textContent = '';
+    box.innerHTML = '<div class="card" style="color:var(--text-muted);">Lista ainda não configurada. Execute <strong>SUPABASE_TODO.sql</strong> no SQL Editor e atualize o app.</div>'; return;
+  }
+  addForm.style.display = 'flex';
+  const pend = todosData.filter(t => !t.feito).sort((a, b) => (a.data_alvo || '9999').localeCompare(b.data_alvo || '9999') || (a.ordem || 0) - (b.ordem || 0));
+  const feitos = todosData.filter(t => t.feito).sort((a, b) => String(b.feito_em || '').localeCompare(String(a.feito_em || '')));
+  resumo.textContent = pend.length ? `${pend.length} pendente${pend.length > 1 ? 's' : ''}` : 'Tudo em dia';
+  const hoje = hojeISO(), limite = isoMenosDias(hoje, -14);
+  const item = t => {
+    let chip = '';
+    if (t.data_alvo) {
+      const cls = t.feito ? '' : t.data_alvo < hoje ? 'late' : t.data_alvo <= limite ? 'soon' : '';
+      chip = `<span class="todo-date ${cls}"><i class="fa-regular fa-calendar"></i> até ${dataDDMM(t.data_alvo)}/${t.data_alvo.slice(0, 4)}</span>`;
+    }
+    return `<div class="todo-item ${t.feito ? 'done' : ''}"><button class="todo-check" onclick="alternarTodo('${t.id}')" aria-label="Marcar"><i class="fa-solid fa-check"></i></button><div class="todo-body" onclick="editarTodo('${t.id}')"><div class="todo-title">${escapeHtml(t.titulo)}</div>${t.nota ? `<div class="todo-note">${escapeHtml(t.nota)}</div>` : ''}${chip}</div><button class="todo-x" onclick="editarTodo('${t.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button class="todo-x" onclick="excluirTodo('${t.id}')" title="Excluir"><i class="fa-solid fa-xmark"></i></button></div>`;
+  };
+  if (!pend.length && !feitos.length) { box.innerHTML = '<div class="card" style="text-align:center;color:var(--text-muted);padding:28px 16px;"><i class="fa-regular fa-square-check" style="font-size:1.8rem;margin-bottom:10px;"></i><div>Nenhum item. Adicione o primeiro acima.</div></div>'; return; }
+  box.innerHTML = pend.map(item).join('') + (feitos.length ? `<div class="todo-done-title">Concluídos · ${feitos.length}</div>` + feitos.map(item).join('') : '');
+}
+async function adicionarTodo(e) {
+  e.preventDefault();
+  const el = document.getElementById('todo-novo'), dt = document.getElementById('todo-novo-data');
+  const titulo = el.value.trim(); if (!titulo) return;
+  const row = { id: crypto.randomUUID(), titulo, data_alvo: dt.value || null, feito: false, ordem: Date.now() };
+  const { error } = await _supabase.from('todos').insert([row]);
+  if (checkError(error, 'adicionar o item')) return;
+  todosData.push({ nota: null, feito_em: null, chave: null, ...row }); el.value = ''; dt.value = ''; renderTodo();
+}
+async function alternarTodo(id) {
+  const t = todosData.find(x => String(x.id) === String(id)); if (!t) return;
+  const antes = { feito: t.feito, feito_em: t.feito_em };
+  t.feito = !t.feito; t.feito_em = t.feito ? new Date().toISOString() : null; renderTodo();
+  const { data, error } = await _supabase.from('todos').update({ feito: t.feito, feito_em: t.feito_em }).eq('id', id).select();
+  if (error || !data || !data.length) { Object.assign(t, antes); renderTodo(); checkError(error || { message: 'sem permissão para editar' }, 'salvar o item'); }
+}
+async function excluirTodo(id) {
+  const t = todosData.find(x => String(x.id) === String(id)); if (!t || !confirm(`Excluir "${t.titulo}"?`)) return;
+  const { error } = await _supabase.from('todos').delete().eq('id', id);
+  if (checkError(error, 'excluir o item')) return;
+  todosData = todosData.filter(x => String(x.id) !== String(id)); renderTodo();
+}
+function editarTodo(id) {
+  const t = todosData.find(x => String(x.id) === String(id)); if (!t) return;
+  document.getElementById('todo-id').value = t.id;
+  document.getElementById('todo-titulo').value = t.titulo || '';
+  document.getElementById('todo-data').value = t.data_alvo || '';
+  document.getElementById('todo-nota').value = t.nota || '';
+  document.getElementById('modal-todo').classList.add('active');
+}
+async function salvarEdicaoTodo(e) {
+  e.preventDefault();
+  const id = document.getElementById('todo-id').value, t = todosData.find(x => String(x.id) === String(id)); if (!t) return;
+  const patch = { titulo: document.getElementById('todo-titulo').value.trim(), data_alvo: document.getElementById('todo-data').value || null, nota: document.getElementById('todo-nota').value.trim() || null };
+  if (!patch.titulo) return;
+  const { data, error } = await _supabase.from('todos').update(patch).eq('id', id).select();
+  if (checkError(error, 'salvar o item')) return;
+  if (!data || !data.length) return alert('O Supabase não autorizou a edição. Execute o SUPABASE_TODO.sql e tente de novo.');
+  Object.assign(t, patch); closeModal('modal-todo'); renderTodo();
+}
+function abrirTodo() {
+  if (currentTab === 'todo') { const t = abaAntesTodo || 'roteiro'; switchTab(t, document.querySelector(`.nav-item[onclick*="'${t}'"]`)); return; }
+  abaAntesTodo = currentTab; switchTab('todo', null);
+}
+// Primeira carga: monta sugestões a partir do roteiro (uma única vez, controlado no Supabase).
+// Datas-alvo são sugestões editáveis: museus/destaques = 45 dias antes da visita; trens = 60; ETIAS = 60 antes do início.
+async function garantirTodoInicial() {
+  if (todoSemeando || !todosDisponiveis || !roteiroData.length) return;
+  todoSemeando = true;
+  try {
+    const { data: flag, error: errFlag } = await _supabase.from('configuracoes').select('valor').eq('chave', 'todo_inicial').maybeSingle();
+    if (errFlag || flag) return;
+    const dias = roteiroData.map(i => diaKeyDDMM(i.dia)).filter(Boolean).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+    const inicio = dias.length ? dataVisitaISO(dias[0]) : '2027-05-20';
+    let ordem = Date.now();
+    const rows = [
+      { chave: 'etias-carol', titulo: 'Solicitar ETIAS — Carol', nota: 'Conferir no site oficial se já é exigido na data da viagem.', data_alvo: isoMenosDias(inicio, 60) },
+      { chave: 'valores-transporte', titulo: 'Atualizar valores de transporte no Orçamento', nota: 'Revisar trens, metrô e deslocamentos com os preços atuais.', data_alvo: isoMenosDias(inicio, 45) }
+    ];
+    const comDoc = new Set(documentosData.map(d => String(d.roteiro_id || '')));
+    roteiroData.slice().sort((a, b) => parseDateForSort(a.dia) - parseDateForSort(b.dia) || (a.ordem || 99) - (b.ordem || 99)).forEach(i => {
+      const cat = (i.categoria === 'MARCO' ? 'DESTAQUE' : (i.categoria || '')).toUpperCase(), v = dataVisitaISO(i.dia);
+      if (!v || comDoc.has(String(i.id))) return;
+      const onde = `${dataDDMM(v)}${i.cidade ? ' · ' + i.cidade : ''}`;
+      if (cat === 'TREM') rows.push({ chave: `trem-${i.id}`, titulo: `Comprar bilhete de trem: ${i.atracao}`, nota: `${onde} — comparar app e promoções de desconto.`, data_alvo: isoMenosDias(v, 60) });
+      else if ((cat === 'MUSEU' || cat === 'DESTAQUE') && parseFloat(i.custo) > 0) rows.push({ chave: `ing-${i.id}`, titulo: `Comprar ingresso: ${i.atracao}`, nota: `${onde} — conferir se exige horário marcado.`, data_alvo: isoMenosDias(v, 45) });
+    });
+    const payload = rows.map(r => ({ id: crypto.randomUUID(), feito: false, ordem: ordem++, ...r }));
+    const { error } = await _supabase.from('todos').upsert(payload, { onConflict: 'chave', ignoreDuplicates: true });
+    if (error) { console.warn('[To-do] sugestões não criadas', error.message); return; }
+    await _supabase.from('configuracoes').upsert({ chave: 'todo_inicial', valor: '1' }, { onConflict: 'chave' });
+    const { data } = await _supabase.from('todos').select('*'); todosData = data || []; renderTodo();
+  } finally { todoSemeando = false; }
 }
 
 // ===================== CALENDÁRIO (cidades e migrações) =====================

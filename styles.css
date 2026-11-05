@@ -58,6 +58,7 @@ header {
 .header-actions { display: flex; gap: 8px; }
 
 .icon-btn {
+  position: relative;
   background: var(--bg-main);
   border: 1px solid var(--border-color);
   width: 36px;
@@ -602,10 +603,10 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
 .doc-actions { display:flex; gap:5px; flex-shrink:0; }
 .doc-actions button { background:var(--bg-main); border:1px solid var(--border-color); color:var(--text-main); border-radius:8px; width:34px; height:34px; cursor:pointer; }
 .attachment-btn { color:var(--text-muted) !important; opacity:.55; }
-.attachment-btn.active { color:#fbbf24 !important; opacity:1; border-color:#fbbf24 !important; background:rgba(251,191,36,.12) !important; }
+.btn-act.attachment-btn.active { background: var(--bar-color, var(--accent-blue)) !important; color:#fff !important; border-color: var(--bar-color, var(--accent-blue)) !important; opacity:1; }
 .attachment-btn.muted { opacity:.38; }
 .chip-label { font-size:.62rem; font-weight:800; letter-spacing:.05em; color:var(--text-muted); align-self:center; flex-shrink:0; }
-#docs-cidade-bar { margin-top:12px; margin-bottom:8px; }
+#docs-cidade-bar { margin-top:0; margin-bottom:8px; }
 .doc-link-filter { align-items:center; gap:8px; max-width:100%; margin-bottom:12px; padding:7px 8px 7px 12px; background:rgba(251,191,36,.12); border:1px solid #fbbf24; border-radius:20px; color:#fbbf24; font-size:.78rem; font-weight:700; }
 .doc-link-text { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .doc-link-filter button { flex-shrink:0; width:24px; height:24px; border:none; border-radius:50%; background:rgba(251,191,36,.25); color:inherit; cursor:pointer; }
@@ -615,3 +616,29 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
   .doc-card { flex-wrap:wrap; }
   .doc-actions { width:100%; justify-content:flex-end; padding-top:8px; border-top:1px solid var(--border-color); }
 }
+
+/* ===== To-do list ===== */
+.icon-btn.active { border-color:#fbbf24; background:rgba(251,191,36,.12); }
+.todo-badge { position:absolute; top:-6px; right:-6px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--accent-red); color:#fff; font-size:.6rem; font-weight:800; align-items:center; justify-content:center; display:flex; }
+.todo-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+.todo-head span { font-size:.75rem; color:var(--text-muted); font-weight:700; }
+.todo-add { display:flex; gap:8px; margin-bottom:14px; }
+.todo-add .form-control { margin:0; min-width:0; }
+#todo-novo { flex:1; }
+#todo-novo-data { flex:0 0 138px; }
+.todo-add-btn { flex:0 0 42px; border:none; border-radius:10px; background:var(--accent-blue); color:#fff; cursor:pointer; }
+.todo-item { display:flex; align-items:flex-start; gap:10px; padding:11px 10px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; }
+.todo-check { flex-shrink:0; width:24px; height:24px; margin-top:1px; border:2px solid var(--text-muted); border-radius:6px; background:transparent; color:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.75rem; }
+.todo-item.done .todo-check { background:var(--accent-green); border-color:var(--accent-green); color:#fff; }
+.todo-body { flex:1; min-width:0; cursor:pointer; }
+.todo-title { font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }
+.todo-note { font-size:.75rem; color:var(--text-muted); margin-top:2px; overflow-wrap:anywhere; }
+.todo-date { display:inline-block; margin-top:6px; padding:2px 8px; border-radius:10px; border:1px solid var(--border-color); font-size:.68rem; font-weight:700; color:var(--text-muted); }
+.todo-date.soon { color:#fbbf24; border-color:#fbbf24; }
+.todo-date.late { color:#f87171; border-color:#f87171; }
+.todo-item.done .todo-title { text-decoration:line-through; color:var(--text-muted); }
+.todo-item.done { opacity:.65; }
+.todo-x { flex-shrink:0; width:30px; height:30px; border:none; background:transparent; color:var(--text-muted); cursor:pointer; border-radius:8px; }
+.todo-x:hover { color:var(--text-main); }
+.todo-done-title { margin:16px 2px 8px; font-size:.7rem; font-weight:800; letter-spacing:.05em; color:var(--text-muted); text-transform:uppercase; }
+@media (max-width:420px) { #todo-novo-data { flex-basis:118px; } }
