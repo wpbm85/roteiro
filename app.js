@@ -706,7 +706,8 @@ function renderTimeline() {
 }
 
 // ===================== DOCUMENTOS / RESERVAS =====================
-const DOC_CATEGORIAS = ['HOTEL', 'INGRESSOS', 'OUTROS', 'TREM', 'VOO'];
+// Ordem de exibição: Hotel > Ingressos > Trem > Voo > Outros.
+const DOC_CATEGORIAS = ['HOTEL', 'INGRESSOS', 'TREM', 'VOO', 'OUTROS'];
 const DOC_CIDADES = ['GERAL', 'AMSTERDAM', 'BRUXELAS', 'GENT', 'BRUGES', 'PARIS', 'ROTERDAM', 'DELFT', 'HAIA'];
 const DOC_CATEGORIAS_ROTEIRO = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'];
 // Cor do ícone do arquivo = cor da categoria equivalente no roteiro (INGRESSOS usa a de DESTAQUE).
@@ -808,6 +809,9 @@ function renderDocumentos() {
   } else { linkBox.style.display = 'none'; linkBox.innerHTML = ''; }
   if (!documentosDisponiveis) { container.innerHTML = '<div class="card" style="color:var(--text-muted);">Área ainda não configurada. Execute <strong>SUPABASE_DOCUMENTOS.sql</strong> no SQL Editor e atualize o app.</div>'; return; }
   const lista = documentosData.filter(d => (filtroDocsCategoria === 'TODAS' || d.categoria === filtroDocsCategoria) && (filtroDocsCidade === 'TODAS' || d.cidade === filtroDocsCidade) && (!filtroDocsRoteiroId || String(d.roteiro_id || '') === filtroDocsRoteiroId));
+  // Ordem: pendentes antes de concluídos; depois categoria (Hotel > Ingressos > Trem > Voo > Outros); depois data do item vinculado (sem vínculo no fim).
+  const chaveData = d => { const it = d.roteiro_id ? roteiroData.find(i => String(i.id) === String(d.roteiro_id)) : null; const k = it ? diaKeyDDMM(it.dia) : null; return { dia: k ? parseDateForSort(k) : 99999, ordem: it ? (it.ordem || 99) : 99 }; };
+  lista.sort((a, b) => (a.feito ? 1 : 0) - (b.feito ? 1 : 0) || DOC_CATEGORIAS.indexOf(a.categoria) - DOC_CATEGORIAS.indexOf(b.categoria) || chaveData(a).dia - chaveData(b).dia || chaveData(a).ordem - chaveData(b).ordem || String(a.created_at || '').localeCompare(String(b.created_at || '')));
   if (!lista.length) {
     const addBtn = filtroDocsRoteiroId ? `<button class="submit-btn" style="margin-top:12px;" onclick="abrirModalDocumento('${escapeHtml(filtroDocsRoteiroId)}')"><i class="fa-solid fa-plus"></i> Adicionar documento a este item</button>` : '<small>Use o botão + para adicionar uma reserva, ingresso ou comprovante.</small>';
     container.innerHTML = `<div class="card" style="text-align:center;color:var(--text-muted);padding:28px 16px;"><i class="fa-regular fa-folder-open" style="font-size:1.8rem;margin-bottom:10px;"></i><div>Nenhum documento encontrado.</div>${addBtn}</div>`; return;
@@ -816,8 +820,17 @@ function renderDocumentos() {
     const it = d.roteiro_id ? roteiroData.find(i => String(i.id) === String(d.roteiro_id)) : null;
     const img = (d.mime_type || '').startsWith('image/');
     const size = d.tamanho_bytes ? (d.tamanho_bytes / 1048576 >= 1 ? (d.tamanho_bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(d.tamanho_bytes / 1024)) + ' KB') : '';
-    return `<div class="doc-card"><i class="fa-solid ${img ? 'fa-file-image' : 'fa-file-pdf'} doc-file-icon" style="color:${DOC_COR_CATEGORIA[d.categoria] || 'var(--cat-outro)'};"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome || d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it ? ' · ' + escapeHtml(it.atracao) : ''}${size ? ' · ' + size : ''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="editarDocumento('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`;
+    return `<div class="doc-card ${d.feito ? 'done' : ''}"><i class="fa-solid ${img ? 'fa-file-image' : 'fa-file-pdf'} doc-file-icon" style="color:${DOC_COR_CATEGORIA[d.categoria] || 'var(--cat-outro)'};"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome || d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it ? ' · ' + escapeHtml(it.atracao) : ''}${size ? ' · ' + size : ''}</div></div><div class="doc-actions"><button class="doc-done ${d.feito ? 'active' : ''}" onclick="alternarDocumentoFeito('${d.id}')" title="${d.feito ? 'Desmarcar' : 'Marcar como resolvido'}"><i class="fa-solid fa-check"></i></button><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="editarDocumento('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`;
   }).join('');
+}
+async function alternarDocumentoFeito(id) {
+  const d = documentosData.find(x => String(x.id) === String(id)); if (!d) return;
+  const antes = !!d.feito; d.feito = !antes; renderDocumentos();
+  const { data, error } = await _supabase.from('documentos').update({ feito: d.feito }).eq('id', id).select();
+  if (error || !data || !data.length) {
+    d.feito = antes; renderDocumentos();
+    alert('Não foi possível salvar a marcação.\n\nExecute uma vez o SQL SUPABASE_DOCUMENTOS_CHECK.sql no Supabase e tente de novo.' + (error ? `\n\nDetalhe: ${error.message}` : ''));
+  }
 }
 function nomeArquivoSeguro(name) { return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100); }
 async function salvarEdicaoDocumento(id) {

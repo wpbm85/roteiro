@@ -642,3 +642,9 @@ i[data-transporte="trem"] { color: var(--icon-trem); }
 .todo-x:hover { color:var(--text-main); }
 .todo-done-title { margin:16px 2px 8px; font-size:.7rem; font-weight:800; letter-spacing:.05em; color:var(--text-muted); text-transform:uppercase; }
 @media (max-width:420px) { #todo-novo-data { flex-basis:118px; } }
+
+/* ===== Documentos: check de concluído ===== */
+.doc-actions button.doc-done { color:var(--text-muted); }
+.doc-actions button.doc-done.active { background:var(--accent-green); border-color:var(--accent-green); color:#fff; }
+.doc-card.done { opacity:.5; }
+.doc-card.done .doc-name { text-decoration:line-through; }

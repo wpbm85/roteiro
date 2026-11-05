@@ -22,6 +22,10 @@
 - Na primeira abertura, a lista é preenchida uma única vez com sugestões: ETIAS (Carol), atualização de valores de transporte e, a partir do roteiro, bilhetes de trem e ingressos de museus/destaques com custo e sem documento anexado. As datas-alvo são sugestões editáveis (45 dias antes da visita para ingressos, 60 para trens e ETIAS).
 - **Requer 1 SQL extra:** `SUPABASE_TODO.sql`.
 
+## Ordem e check em Documentos
+- Ordem da lista: Hotel > Ingressos > Trem > Voo > Outros e, dentro de cada um, por data do item vinculado (sem vínculo, no fim do grupo). Os chips de TIPO seguem a mesma ordem.
+- Botão de check em cada documento: risca, esmaece e move para o final da lista. Requer `SUPABASE_DOCUMENTOS_CHECK.sql` (1 vez).
+
 ## Instalação Supabase (obrigatória antes do uso)
 1. Abra o projeto Supabase usado pelo app.
 2. Entre em **SQL Editor** → **New query**.

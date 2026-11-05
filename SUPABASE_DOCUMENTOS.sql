@@ -12,6 +12,7 @@ create table if not exists public.documentos (
  mime_type text not null, tamanho_bytes bigint not null,
  categoria text not null check (categoria in ('HOTEL','INGRESSOS','OUTROS','TREM','VOO')),
  cidade text not null check (cidade in ('GERAL','AMSTERDAM','BRUXELAS','GENT','BRUGES','PARIS','ROTERDAM','DELFT','HAIA')),
+ feito boolean not null default false,
  roteiro_id text null, roteiro_categoria text null, roteiro_atracao text null,
  created_by uuid not null default auth.uid(), created_at timestamptz not null default now()
 );
