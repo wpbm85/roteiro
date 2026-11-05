@@ -13,6 +13,11 @@ let isInitialized = false;
 let roteiroData = [];
 let orcamentoData = [];
 let gastosData = [];
+let documentosData = [];
+let documentosDisponiveis = true;
+let filtroDocsCategoria = "TODAS";
+let filtroDocsCidade = "TODAS";
+let filtroDocsRoteiroId = null;
 let sortableInstance = null;
 
 const DIAS_TRADUCAO = {
@@ -153,16 +158,20 @@ async function loadAllData(isFirstLoad = false) {
   const { data: rot, error: errRot } = await _supabase.from('roteiro').select('*').order('ordem', { ascending: true });
   const { data: orc, error: errOrc } = await _supabase.from('orcamento').select('*');
   const { data: gas, error: errGas } = await _supabase.from('gastos').select('*');
+  const { data: docs, error: errDocs } = await _supabase.from('documentos').select('*').order('created_at', { ascending: false });
 
   checkError(errRot, 'carregar o roteiro');
   checkError(errOrc, 'carregar o orçamento');
   checkError(errGas, 'carregar os gastos');
+  documentosDisponiveis = !errDocs;
+  if (errDocs) console.warn('[Documentos] Tabela ainda indisponível. Execute o SQL de instalação.', errDocs.message);
 
   await carregarEuroMedio();
 
   roteiroData = rot || [];
   orcamentoData = (orc || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
   gastosData = (gas || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
+  documentosData = docs || [];
 
   if (isFirstLoad || !currentSelectedDay) {
     autoSelectToday();
@@ -175,6 +184,7 @@ async function loadAllData(isFirstLoad = false) {
   renderCalendario();
   renderOrcamento();
   renderGastos();
+  renderDocumentos();
 }
 
 function formatDayLabel(dayStr) {
@@ -312,7 +322,10 @@ function switchTab(tabName, btn) {
   document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   document.getElementById(`tab-${tabName}`).classList.add("active");
-  btn.classList.add("active");
+  if (btn) btn.classList.add("active");
+  const fab = document.getElementById("fab-btn");
+  if (fab) fab.style.display = tabName === "calendario" ? "none" : "flex";
+  if (tabName === "documentos") renderDocumentos();
 }
 
 function openContextModal() {
@@ -342,6 +355,8 @@ function openContextModal() {
     const aviso = document.getElementById("orc-linked-aviso");
     if (aviso) aviso.style.display = "none";
     document.getElementById("modal-orcamento").classList.add("active");
+  } else if (currentTab === 'documentos') {
+    abrirModalDocumento();
   } else if (currentTab === 'gastos') {
     document.getElementById("gas-id").value = "";
     document.getElementById("form-gastos").reset();
@@ -565,6 +580,9 @@ function renderItemCardHtml(item) {
   const linkSafe = (item.link || '').replace(/'/g, "\\'");
   const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
   const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
+  const categoriaVinculavel = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'].includes(catDisplay);
+  const docsDoItem = categoriaVinculavel ? documentosData.filter(d => String(d.roteiro_id || '') === String(item.id)) : [];
+  const temDocs = docsDoItem.length > 0;
 
   return `
     <div class="card ${isFeito}" data-id="${item.id}" style="--bar-color: ${catBg};">
@@ -587,6 +605,7 @@ function renderItemCardHtml(item) {
                <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
                <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
                <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Abrir no Google Maps"><i class="fa-solid fa-map-pin"></i></button>
+               ${categoriaVinculavel ? `<button class="btn-act attachment-btn ${temDocs ? 'active' : 'muted'}" onclick="abrirDocumentosDoRoteiro('${String(item.id)}')" title="${temDocs ? docsDoItem.length + ' documento(s) vinculado(s)' : 'Anexar documento'}"><i class="fa-solid fa-paperclip"></i></button>` : ''}
                <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
                <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -672,6 +691,84 @@ function renderTimeline() {
       }
     }
   });
+}
+
+// ===================== DOCUMENTOS / RESERVAS =====================
+const DOC_CATEGORIAS = ['HOTEL', 'INGRESSOS', 'OUTROS', 'TREM', 'VOO'];
+const DOC_CIDADES = ['GERAL', 'AMSTERDAM', 'BRUXELAS', 'GENT', 'BRUGES', 'PARIS', 'ROTERDAM', 'DELFT', 'HAIA'];
+const DOC_CATEGORIAS_ROTEIRO = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'];
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function nomeRoteiro(item) { return `${item.atracao || 'Item sem descrição'}${item.cidade ? ' · '+item.cidade : ''}${item.dia ? ' · '+item.dia : ''} (${item.categoria === 'MARCO' ? 'DESTAQUE' : item.categoria})`; }
+function prepararFormularioDocumento(roteiroId = null) {
+  const cat = document.getElementById('doc-categoria');
+  const city = document.getElementById('doc-cidade');
+  const select = document.getElementById('doc-roteiro');
+  cat.innerHTML = '<option value="">Selecione a categoria</option>' + DOC_CATEGORIAS.map(v => `<option>${v}</option>`).join('');
+  city.innerHTML = '<option value="">Selecione a cidade</option>' + DOC_CIDADES.map(v => `<option>${v}</option>`).join('');
+  const elegiveis = roteiroData.filter(i => DOC_CATEGORIAS_ROTEIRO.includes((i.categoria || '').toUpperCase()));
+  select.innerHTML = '<option value="">Sem vínculo</option>' + elegiveis.map(i => `<option value="${String(i.id)}">${escapeHtml(nomeRoteiro(i))}</option>`).join('');
+  if (roteiroId !== null) select.value = String(roteiroId);
+}
+function abrirModalDocumento(roteiroId = null) {
+  document.getElementById('form-documento').reset(); prepararFormularioDocumento(roteiroId);
+  const item = roteiroId !== null ? roteiroData.find(i => String(i.id) === String(roteiroId)) : null;
+  if (item) {
+    const cat = (item.categoria || '').toUpperCase();
+    document.getElementById('doc-cidade').value = DOC_CIDADES.includes((item.cidade || '').toUpperCase()) ? item.cidade.toUpperCase() : 'GERAL';
+    document.getElementById('doc-categoria').value = cat === 'HOTEL' ? 'HOTEL' : cat === 'TREM' ? 'TREM' : cat === 'AEROPORTO' ? 'VOO' : ['DESTAQUE','MARCO','MUSEU'].includes(cat) ? 'INGRESSOS' : 'OUTROS';
+  }
+  document.getElementById('modal-documento').classList.add('active');
+}
+function abrirDocumentosDoRoteiro(roteiroId) {
+  filtroDocsRoteiroId = String(roteiroId); filtroDocsCategoria = 'TODAS'; filtroDocsCidade = 'TODAS';
+  switchTab('documentos', document.getElementById('nav-btn-documentos')); renderDocumentos();
+}
+function atualizarFiltroDocumentos() {
+  filtroDocsCategoria = document.getElementById('docs-filtro-categoria').value;
+  filtroDocsCidade = document.getElementById('docs-filtro-cidade').value; renderDocumentos();
+}
+function limparFiltroVinculoDocumentos() { filtroDocsRoteiroId = null; renderDocumentos(); }
+function renderDocumentos() {
+  const container = document.getElementById('documentos-list'); if (!container) return;
+  const catEl = document.getElementById('docs-filtro-categoria'), cityEl = document.getElementById('docs-filtro-cidade');
+  if (catEl && catEl.options.length !== DOC_CATEGORIAS.length+1) catEl.innerHTML = '<option value="TODAS">Todas as categorias</option>'+DOC_CATEGORIAS.map(v=>`<option>${v}</option>`).join('');
+  if (cityEl && cityEl.options.length !== DOC_CIDADES.length+1) cityEl.innerHTML = '<option value="TODAS">Todas as cidades</option>'+DOC_CIDADES.map(v=>`<option>${v}</option>`).join('');
+  if (catEl) catEl.value=filtroDocsCategoria; if (cityEl) cityEl.value=filtroDocsCidade;
+  const linkBox=document.getElementById('docs-filtro-vinculo');
+  if (filtroDocsRoteiroId) { const it=roteiroData.find(i=>String(i.id)===filtroDocsRoteiroId); linkBox.style.display='block'; linkBox.innerHTML=`<button class="chip active" onclick="limparFiltroVinculoDocumentos()"><i class="fa-solid fa-link"></i> ${escapeHtml(it?nomeRoteiro(it):'Item do roteiro')} · limpar ×</button>`; }
+  else linkBox.style.display='none';
+  if (!documentosDisponiveis) { container.innerHTML='<div class="card" style="color:var(--text-muted);">Área ainda não configurada. Execute <strong>SUPABASE_DOCUMENTOS.sql</strong> no SQL Editor e atualize o app.</div>'; return; }
+  const lista=documentosData.filter(d=>(filtroDocsCategoria==='TODAS'||d.categoria===filtroDocsCategoria)&&(filtroDocsCidade==='TODAS'||d.cidade===filtroDocsCidade)&&(!filtroDocsRoteiroId||String(d.roteiro_id||'')===filtroDocsRoteiroId));
+  if (!lista.length) { container.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:28px 16px;"><i class="fa-regular fa-folder-open" style="font-size:1.8rem;margin-bottom:10px;"></i><div>Nenhum documento encontrado.</div><small>Use o botão + para adicionar uma reserva, ingresso ou comprovante.</small></div>'; return; }
+  container.innerHTML=lista.map(d=>{ const it=d.roteiro_id?roteiroData.find(i=>String(i.id)===String(d.roteiro_id)):null; const img=(d.mime_type||'').startsWith('image/'); const size=d.tamanho_bytes?(d.tamanho_bytes/1048576>=1?(d.tamanho_bytes/1048576).toFixed(1)+' MB':Math.max(1,Math.round(d.tamanho_bytes/1024))+' KB'):''; return `<div class="doc-card"><i class="fa-solid ${img?'fa-file-image doc-file-icon image':'fa-file-pdf doc-file-icon'}"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome||d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it?' · '+escapeHtml(it.atracao):''}${size?' · '+size:''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`; }).join('');
+}
+async function handleDocumentoSubmit(e) {
+  e.preventDefault(); if(!documentosDisponiveis) return alert('Configure primeiro a tabela e o Storage no Supabase.');
+  const file=document.getElementById('doc-arquivo').files[0]; if(!file)return;
+  if(!['application/pdf','image/jpeg','image/png'].includes(file.type))return alert('Use PDF, JPG ou PNG.');
+  if(file.size>10*1024*1024)return alert('O arquivo ultrapassa 10 MB.');
+  const btn=document.getElementById('doc-submit-btn'); btn.disabled=true;btn.textContent='Enviando...';
+  try {
+    const id=crypto.randomUUID(); const safe=file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-100); const path=`${id}/${safe}`;
+    const {error:upErr}=await _supabase.storage.from('reservas').upload(path,file,{contentType:file.type,upsert:false}); if(upErr)throw upErr;
+    const roteiroId=document.getElementById('doc-roteiro').value||null; const item=roteiroId?roteiroData.find(i=>String(i.id)===String(roteiroId)):null;
+    const payload={id,nome:document.getElementById('doc-nome').value.trim()||file.name,nome_arquivo:file.name,caminho_arquivo:path,mime_type:file.type,tamanho_bytes:file.size,categoria:document.getElementById('doc-categoria').value,cidade:document.getElementById('doc-cidade').value,roteiro_id:roteiroId,roteiro_categoria:item?item.categoria:null,roteiro_atracao:item?item.atracao:null};
+    const {error:dbErr}=await _supabase.from('documentos').insert([payload]); if(dbErr){await _supabase.storage.from('reservas').remove([path]);throw dbErr;}
+    closeModal('modal-documento'); await loadAllData(false); alert('Documento salvo com segurança.');
+  } catch(err) { console.error('[Documentos]',err); alert(`Não foi possível salvar o documento.\n\n${err.message||'Erro desconhecido'}`); }
+  finally {btn.disabled=false;btn.textContent='Enviar documento';}
+}
+async function abrirArquivoDocumento(id,download=false) {
+  const doc=documentosData.find(d=>String(d.id)===String(id)); if(!doc)return;
+  const {data,error}=await _supabase.storage.from('reservas').createSignedUrl(doc.caminho_arquivo,60,{download:download?doc.nome_arquivo:false});
+  if(error)return checkError(error,'gerar link temporário do documento');
+  const a=document.createElement('a');a.href=data.signedUrl;a.target='_blank';a.rel='noopener';if(download)a.download=doc.nome_arquivo;document.body.appendChild(a);a.click();a.remove();
+}
+async function excluirDocumento(id) {
+  const doc=documentosData.find(d=>String(d.id)===String(id));if(!doc||!confirm(`Excluir definitivamente "${doc.nome||doc.nome_arquivo}"?`))return;
+  const {error:stErr}=await _supabase.storage.from('reservas').remove([doc.caminho_arquivo]);if(stErr)return checkError(stErr,'excluir arquivo');
+  const {error}=await _supabase.from('documentos').delete().eq('id',id);if(checkError(error,'excluir registro'))return;
+  documentosData=documentosData.filter(d=>String(d.id)!==String(id));renderDocumentos();renderTimeline();
 }
 
 // ===================== CALENDÁRIO (cidades e migrações) =====================

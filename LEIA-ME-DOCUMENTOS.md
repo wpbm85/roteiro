@@ -1,0 +1,31 @@
+# Aba Documentos — Europa 2027
+
+## O que foi incluído
+- Nova aba **Documentos** com filtros por categoria e cidade.
+- Categorias: HOTEL, INGRESSOS, OUTROS, TREM e VOO.
+- Cidades: GERAL, AMSTERDAM, BRUXELAS, GENT, BRUGES, PARIS, ROTERDAM, DELFT e HAIA.
+- Upload de PDF, JPG e PNG, até 10 MB por arquivo.
+- Associação opcional a itens do roteiro das categorias AEROPORTO, DESTAQUE/MARCO, TREM, HOTEL, MUSEU e OUTRO.
+- Clipe discreto nos cartões elegíveis do roteiro; fica destacado quando há arquivo associado e abre a lista filtrada.
+- Visualização/download por URL temporária; bucket não público.
+
+## Instalação Supabase (obrigatória antes do uso)
+1. Abra o projeto Supabase usado pelo app.
+2. Entre em **SQL Editor** → **New query**.
+3. Abra `SUPABASE_DOCUMENTOS.sql`, copie todo o conteúdo e execute com **Run**.
+4. Confirme em **Storage** que existe o bucket `reservas` e que está marcado como **Private**.
+5. Em **Table Editor**, confirme a tabela `documentos`.
+
+As políticas deste SQL compartilham os documentos entre todos os usuários autenticados que conseguem entrar neste app familiar. Não tornam o bucket público. Se o projeto permitir que pessoas desconhecidas criem contas, restrinja o cadastro/login antes de usar documentos privados.
+
+## Publicação do app
+1. Substitua no GitHub os arquivos do projeto pelos desta versão, preservando a estrutura da pasta.
+2. Faça commit/push.
+3. Abra o app e faça recarga forçada (Ctrl+F5) ou limpe o cache do PWA.
+4. Teste primeiro com um PDF pequeno: envie, abra, baixe e exclua.
+
+## Observações
+- Nenhum documento é incluído no Excel; os arquivos ficam no Supabase Storage e os metadados na tabela `documentos`.
+- O app gera links assinados válidos por 60 segundos para abrir/baixar os arquivos.
+- A cópia local/offline dos bilhetes importantes continua recomendada.
+- A associação ao roteiro usa o ID como texto e não altera a tabela `roteiro`.

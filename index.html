@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=9.3">
+  <link rel="stylesheet" href="styles.css?v=10.0">
 </head>
 <body>
 
@@ -133,6 +133,13 @@
         <div id="gastos-list" class="list-container"></div>
       </div>
     </section>
+
+    <section id="tab-documentos" class="tab-content">
+      <div class="docs-intro card"><div style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-folder-open" style="font-size:1.4rem;color:var(--accent-blue);"></i><div><strong>Documentos da viagem</strong><div style="font-size:.78rem;color:var(--text-muted);">Reservas, bilhetes e comprovantes em armazenamento privado.</div></div></div></div>
+      <div class="docs-filters"><select id="docs-filtro-categoria" class="form-control" onchange="atualizarFiltroDocumentos()"><option value="TODAS">Todas as categorias</option></select><select id="docs-filtro-cidade" class="form-control" onchange="atualizarFiltroDocumentos()"><option value="TODAS">Todas as cidades</option></select></div>
+      <div id="docs-filtro-vinculo" style="display:none;margin-bottom:12px;"></div>
+      <div id="documentos-list" class="list-container"></div>
+    </section>
   </main>
 
   <button class="fab" id="fab-btn" onclick="openContextModal()" style="display:none;"><i class="fa-solid fa-plus"></i></button>
@@ -238,6 +245,20 @@
     </div>
   </div>
 
+  <div class="modal" id="modal-documento">
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header"><div class="modal-title">Adicionar documento</div><button class="close-btn" onclick="closeModal('modal-documento')">&times;</button></div>
+      <form id="form-documento" onsubmit="handleDocumentoSubmit(event)">
+        <div class="form-group"><label>Arquivo (PDF, JPG ou PNG · até 10 MB)</label><input type="file" id="doc-arquivo" class="form-control" accept="application/pdf,image/jpeg,image/png" required></div>
+        <div class="form-group"><label>Nome / descrição</label><input type="text" id="doc-nome" class="form-control" placeholder="Ex.: Confirmação Hotel Breitner"></div>
+        <div class="form-group"><label>Categoria do documento</label><select id="doc-categoria" class="form-control" required></select></div>
+        <div class="form-group"><label>Cidade</label><select id="doc-cidade" class="form-control" required></select></div>
+        <div class="form-group"><label>Vincular a uma atração ou item do roteiro (opcional)</label><select id="doc-roteiro" class="form-control"><option value="">Sem vínculo</option></select><small style="color:var(--text-muted);font-size:.72rem;">AEROPORTO, DESTAQUE, TREM, HOTEL, MUSEU ou OUTRO.</small></div>
+        <button type="submit" class="submit-btn" id="doc-submit-btn">Enviar documento</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="modal-importar">
     <div class="modal-content" style="max-width:520px;">
       <div class="modal-header">
@@ -257,8 +278,9 @@
     <button class="nav-item" onclick="switchTab('calendario', this)"><i class="fa-regular fa-calendar-days nav-icon"></i><span>Calendário</span></button>
     <button class="nav-item" onclick="switchTab('orcamento', this)"><i class="fa-solid fa-wallet nav-icon"></i><span>Orçamento</span></button>
     <button class="nav-item" onclick="switchTab('gastos', this)"><i class="fa-solid fa-receipt nav-icon"></i><span>Gastos</span></button>
+    <button class="nav-item" id="nav-btn-documentos" onclick="switchTab('documentos', this)"><i class="fa-solid fa-paperclip nav-icon"></i><span>Documentos</span></button>
   </nav>
 
-  <script src="app.js?v=11.5"></script>
+  <script src="app.js?v=12.0"></script>
 </body>
 </html>
