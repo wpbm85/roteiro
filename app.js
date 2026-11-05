@@ -1487,19 +1487,60 @@ async function handleGastosSubmit(e) {
   await loadAllData(false);
 }
 
-function exportToXLSX() {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(roteiroData), "ROTEIRO");
+async function exportToXLSX() {
+  // Busca os dados novamente no Supabase no momento da exportação para não
+  // depender de arrays que possam estar desatualizados na memória do navegador.
+  const [rotResp, orcResp, gasResp] = await Promise.all([
+    _supabase.from('roteiro').select('*').order('ordem', { ascending: true }),
+    _supabase.from('orcamento').select('*'),
+    _supabase.from('gastos').select('*')
+  ]);
 
-  // Mesma lógica da tela: status vira PAGO quando existe gasto real vinculado,
-  // mesmo que o valor "cru" salvo no banco continue A PAGAR/PROJETADO.
-  const orcamentoParaExportar = orcamentoData.map(item => {
-    const vinculado = gastosData.some(g => g.orcamento_id === item.id);
-    return vinculado ? { ...item, status: 'PAGO' } : item;
+  const erroExportacao = rotResp.error || orcResp.error || gasResp.error;
+  if (erroExportacao) {
+    console.error('Erro ao atualizar dados para exportação:', erroExportacao);
+    alert('Não foi possível atualizar os dados antes de exportar. Tente novamente.');
+    return;
+  }
+
+  const roteiroAtual = rotResp.data || [];
+  const orcamentoAtual = (orcResp.data || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
+  const gastosAtuais = (gasResp.data || []).filter(item => item.item && normalizeStr(item.categoria) !== 'total');
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(roteiroAtual), "ROTEIRO");
+
+  // Reproduz exatamente o valor efetivo mostrado no orçamento: quando há
+  // gastos vinculados, exporta a soma paga no lugar da previsão original.
+  const orcamentoParaExportar = orcamentoAtual.map(item => {
+    const vinculados = gastosAtuais.filter(g => String(g.orcamento_id) === String(item.id));
+    if (!vinculados.length) return { ...item };
+    const valorEfetivoEur = vinculados.reduce((soma, g) => {
+      const valor = g.moeda === 'BRL'
+        ? (parseFloat(g.valor_brl) || 0) / euroMedio
+        : (parseFloat(g.valor_eur) || 0);
+      return soma + valor;
+    }, 0);
+    return { ...item, status: 'PAGO', projetado_eur: Number(valorEfetivoEur.toFixed(2)) };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcamentoParaExportar), "ORÇAMENTO");
 
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gastosData), "GASTOS");
+  // Na aba GASTOS, exporta os equivalentes EUR/BRL calculados com a mesma
+  // cotação usada na tela, evitando carregar conversões antigas armazenadas.
+  const gastosParaExportar = gastosAtuais.map(g => {
+    const valorEur = g.moeda === 'BRL'
+      ? (parseFloat(g.valor_brl) || 0) / euroMedio
+      : (parseFloat(g.valor_eur) || 0);
+    const valorBrl = g.moeda === 'BRL'
+      ? (parseFloat(g.valor_brl) || 0)
+      : (parseFloat(g.valor_eur) || 0) * euroMedio;
+    return {
+      ...g,
+      valor_eur: Number(valorEur.toFixed(2)),
+      valor_brl: Number(valorBrl.toFixed(2))
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gastosParaExportar), "GASTOS");
   XLSX.writeFile(wb, "Europa_2027_Roteiro.xlsx");
 }
 
