@@ -1,4 +1,4 @@
-const CACHE_NAME = "europa2027-pwa-v1";
+const CACHE_NAME = "europa2027-pwa-v2";
 
 // URLs que serão armazenadas em cache para uso offline
 const ASSETS_TO_CACHE = [

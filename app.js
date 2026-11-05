@@ -699,18 +699,56 @@ const DOC_CIDADES = ['GERAL', 'AMSTERDAM', 'BRUXELAS', 'GENT', 'BRUGES', 'PARIS'
 const DOC_CATEGORIAS_ROTEIRO = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'];
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function nomeRoteiro(item) { return `${item.atracao || 'Item sem descrição'}${item.cidade ? ' · '+item.cidade : ''}${item.dia ? ' · '+item.dia : ''} (${item.categoria === 'MARCO' ? 'DESTAQUE' : item.categoria})`; }
+// Lista de vínculo organizada: DATA (cronológica) > CIDADE > ATRAÇÃO.
+// <select> nativo só tem 1 nível de grupo, então cada <optgroup> é "DD/MM DIA · CIDADE".
+function opcoesVinculoHtml() {
+  const elegiveis = roteiroData.filter(i => DOC_CATEGORIAS_ROTEIRO.includes((i.categoria || '').toUpperCase()));
+  const porDia = new Map();
+  elegiveis.forEach(i => { const k = diaKeyDDMM(i.dia) || '__sem__'; if (!porDia.has(k)) porDia.set(k, []); porDia.get(k).push(i); });
+  const dias = [...porDia.keys()].sort((a, b) => (a === '__sem__' ? 99999 : parseDateForSort(a)) - (b === '__sem__' ? 99999 : parseDateForSort(b)));
+  let html = '';
+  dias.forEach(k => {
+    const itens = porDia.get(k).slice().sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+    const rotuloDia = k === '__sem__' ? 'SEM DATA' : formatDayLabel(itens[0].dia).full.trim();
+    const porCidade = new Map();
+    itens.forEach(i => { const c = (i.cidade || 'SEM CIDADE').toUpperCase(); if (!porCidade.has(c)) porCidade.set(c, []); porCidade.get(c).push(i); });
+    porCidade.forEach((lista, cidade) => {
+      html += `<optgroup label="${escapeHtml(rotuloDia)} · ${escapeHtml(cidade)}">` +
+        lista.map(i => `<option value="${escapeHtml(String(i.id))}">${escapeHtml(i.atracao || 'Item sem descrição')} (${escapeHtml(i.categoria === 'MARCO' ? 'DESTAQUE' : i.categoria)})</option>`).join('') +
+        `</optgroup>`;
+    });
+  });
+  return html;
+}
 function prepararFormularioDocumento(roteiroId = null) {
   const cat = document.getElementById('doc-categoria');
   const city = document.getElementById('doc-cidade');
   const select = document.getElementById('doc-roteiro');
   cat.innerHTML = '<option value="">Selecione a categoria</option>' + DOC_CATEGORIAS.map(v => `<option>${v}</option>`).join('');
   city.innerHTML = '<option value="">Selecione a cidade</option>' + DOC_CIDADES.map(v => `<option>${v}</option>`).join('');
-  const elegiveis = roteiroData.filter(i => DOC_CATEGORIAS_ROTEIRO.includes((i.categoria || '').toUpperCase()));
-  select.innerHTML = '<option value="">Sem vínculo</option>' + elegiveis.map(i => `<option value="${String(i.id)}">${escapeHtml(nomeRoteiro(i))}</option>`).join('');
-  if (roteiroId !== null) select.value = String(roteiroId);
+  select.innerHTML = '<option value="">Sem vínculo</option>' + opcoesVinculoHtml();
+  if (roteiroId !== null && roteiroId !== undefined && roteiroId !== '') {
+    // Se o item vinculado já não é elegível (ex.: categoria mudou), mantém o vínculo atual visível.
+    if (![...select.options].some(o => o.value === String(roteiroId))) {
+      const it = roteiroData.find(i => String(i.id) === String(roteiroId));
+      select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(String(roteiroId))}">${escapeHtml(it ? nomeRoteiro(it) : 'Vínculo atual')}</option>`);
+    }
+    select.value = String(roteiroId);
+  }
+}
+function estadoModalDocumento(edicao, doc = null) {
+  document.getElementById('doc-id').value = edicao && doc ? doc.id : '';
+  document.getElementById('doc-modal-title').textContent = edicao ? 'Editar documento' : 'Adicionar documento';
+  document.getElementById('doc-submit-btn').textContent = edicao ? 'Salvar alterações' : 'Enviar documento';
+  const file = document.getElementById('doc-arquivo');
+  file.required = !edicao;
+  document.getElementById('doc-arquivo-label').textContent = edicao ? 'Substituir arquivo (opcional · PDF, JPG ou PNG · até 10 MB)' : 'Arquivo (PDF, JPG ou PNG · até 10 MB)';
+  const atual = document.getElementById('doc-arquivo-atual');
+  if (edicao && doc) { atual.style.display = 'block'; atual.textContent = `Arquivo atual: ${doc.nome_arquivo}. Se não escolher outro, ele é mantido.`; }
+  else { atual.style.display = 'none'; atual.textContent = ''; }
 }
 function abrirModalDocumento(roteiroId = null) {
-  document.getElementById('form-documento').reset(); prepararFormularioDocumento(roteiroId);
+  document.getElementById('form-documento').reset(); prepararFormularioDocumento(roteiroId); estadoModalDocumento(false);
   const item = roteiroId !== null ? roteiroData.find(i => String(i.id) === String(roteiroId)) : null;
   if (item) {
     const cat = (item.categoria || '').toUpperCase();
@@ -719,37 +757,101 @@ function abrirModalDocumento(roteiroId = null) {
   }
   document.getElementById('modal-documento').classList.add('active');
 }
+function editarDocumento(id) {
+  const d = documentosData.find(x => String(x.id) === String(id)); if (!d) return;
+  document.getElementById('form-documento').reset(); prepararFormularioDocumento(d.roteiro_id); estadoModalDocumento(true, d);
+  document.getElementById('doc-nome').value = d.nome || d.nome_arquivo || '';
+  document.getElementById('doc-categoria').value = d.categoria;
+  document.getElementById('doc-cidade').value = d.cidade;
+  document.getElementById('modal-documento').classList.add('active');
+}
 function abrirDocumentosDoRoteiro(roteiroId) {
   filtroDocsRoteiroId = String(roteiroId); filtroDocsCategoria = 'TODAS'; filtroDocsCidade = 'TODAS';
-  switchTab('documentos', document.getElementById('nav-btn-documentos')); renderDocumentos();
+  switchTab('documentos', document.getElementById('nav-btn-documentos')); renderDocumentos(); window.scrollTo({ top: 0 });
 }
-function atualizarFiltroDocumentos() {
-  filtroDocsCategoria = document.getElementById('docs-filtro-categoria').value;
-  filtroDocsCidade = document.getElementById('docs-filtro-cidade').value; renderDocumentos();
-}
+function filtrarDocsCategoria(v) { filtroDocsCategoria = v; renderDocumentos(); }
+function filtrarDocsCidade(v) { filtroDocsCidade = v; renderDocumentos(); }
 function limparFiltroVinculoDocumentos() { filtroDocsRoteiroId = null; renderDocumentos(); }
+// Barras de chips no mesmo padrão do Orçamento (rolagem horizontal, só valores existentes).
+function chipsDocs(barId, rotulo, valores, ordemCanonica, ativo, fn) {
+  const bar = document.getElementById(barId); if (!bar) return;
+  const presentes = [...new Set(valores.filter(Boolean))];
+  if (ativo !== 'TODAS' && !presentes.includes(ativo)) presentes.push(ativo);
+  presentes.sort((a, b) => ordemCanonica.indexOf(a) - ordemCanonica.indexOf(b));
+  const nome = v => v.charAt(0) + v.slice(1).toLowerCase();
+  bar.innerHTML = `<span class="chip-label">${rotulo}</span><button class="chip ${ativo === 'TODAS' ? 'active' : ''}" onclick="${fn}('TODAS')">Todas</button>` +
+    presentes.map(v => `<button class="chip ${v === ativo ? 'active' : ''}" onclick="${fn}('${v}')">${nome(v)}</button>`).join('');
+}
 function renderDocumentos() {
   const container = document.getElementById('documentos-list'); if (!container) return;
-  const catEl = document.getElementById('docs-filtro-categoria'), cityEl = document.getElementById('docs-filtro-cidade');
-  if (catEl && catEl.options.length !== DOC_CATEGORIAS.length+1) catEl.innerHTML = '<option value="TODAS">Todas as categorias</option>'+DOC_CATEGORIAS.map(v=>`<option>${v}</option>`).join('');
-  if (cityEl && cityEl.options.length !== DOC_CIDADES.length+1) cityEl.innerHTML = '<option value="TODAS">Todas as cidades</option>'+DOC_CIDADES.map(v=>`<option>${v}</option>`).join('');
-  if (catEl) catEl.value=filtroDocsCategoria; if (cityEl) cityEl.value=filtroDocsCidade;
-  const linkBox=document.getElementById('docs-filtro-vinculo');
-  if (filtroDocsRoteiroId) { const it=roteiroData.find(i=>String(i.id)===filtroDocsRoteiroId); linkBox.style.display='block'; linkBox.innerHTML=`<button class="chip active" onclick="limparFiltroVinculoDocumentos()"><i class="fa-solid fa-link"></i> ${escapeHtml(it?nomeRoteiro(it):'Item do roteiro')} · limpar ×</button>`; }
-  else linkBox.style.display='none';
-  if (!documentosDisponiveis) { container.innerHTML='<div class="card" style="color:var(--text-muted);">Área ainda não configurada. Execute <strong>SUPABASE_DOCUMENTOS.sql</strong> no SQL Editor e atualize o app.</div>'; return; }
-  const lista=documentosData.filter(d=>(filtroDocsCategoria==='TODAS'||d.categoria===filtroDocsCategoria)&&(filtroDocsCidade==='TODAS'||d.cidade===filtroDocsCidade)&&(!filtroDocsRoteiroId||String(d.roteiro_id||'')===filtroDocsRoteiroId));
-  if (!lista.length) { container.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:28px 16px;"><i class="fa-regular fa-folder-open" style="font-size:1.8rem;margin-bottom:10px;"></i><div>Nenhum documento encontrado.</div><small>Use o botão + para adicionar uma reserva, ingresso ou comprovante.</small></div>'; return; }
-  container.innerHTML=lista.map(d=>{ const it=d.roteiro_id?roteiroData.find(i=>String(i.id)===String(d.roteiro_id)):null; const img=(d.mime_type||'').startsWith('image/'); const size=d.tamanho_bytes?(d.tamanho_bytes/1048576>=1?(d.tamanho_bytes/1048576).toFixed(1)+' MB':Math.max(1,Math.round(d.tamanho_bytes/1024))+' KB'):''; return `<div class="doc-card"><i class="fa-solid ${img?'fa-file-image doc-file-icon image':'fa-file-pdf doc-file-icon'}"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome||d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it?' · '+escapeHtml(it.atracao):''}${size?' · '+size:''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`; }).join('');
+  chipsDocs('docs-cidade-bar', 'CIDADE', documentosData.map(d => d.cidade), DOC_CIDADES, filtroDocsCidade, 'filtrarDocsCidade');
+  chipsDocs('docs-cat-bar', 'TIPO', documentosData.map(d => d.categoria), DOC_CATEGORIAS, filtroDocsCategoria, 'filtrarDocsCategoria');
+  const linkBox = document.getElementById('docs-filtro-vinculo');
+  if (filtroDocsRoteiroId) {
+    const it = roteiroData.find(i => String(i.id) === filtroDocsRoteiroId);
+    linkBox.style.display = 'flex';
+    linkBox.innerHTML = `<i class="fa-solid fa-link"></i><span class="doc-link-text">${escapeHtml(it ? it.atracao : 'Item do roteiro')}${it && it.dia ? ' · ' + escapeHtml(formatDayLabel(it.dia).full.trim()) : ''}</span><button onclick="limparFiltroVinculoDocumentos()" title="Remover filtro"><i class="fa-solid fa-xmark"></i></button>`;
+  } else { linkBox.style.display = 'none'; linkBox.innerHTML = ''; }
+  if (!documentosDisponiveis) { container.innerHTML = '<div class="card" style="color:var(--text-muted);">Área ainda não configurada. Execute <strong>SUPABASE_DOCUMENTOS.sql</strong> no SQL Editor e atualize o app.</div>'; return; }
+  const lista = documentosData.filter(d => (filtroDocsCategoria === 'TODAS' || d.categoria === filtroDocsCategoria) && (filtroDocsCidade === 'TODAS' || d.cidade === filtroDocsCidade) && (!filtroDocsRoteiroId || String(d.roteiro_id || '') === filtroDocsRoteiroId));
+  if (!lista.length) {
+    const addBtn = filtroDocsRoteiroId ? `<button class="submit-btn" style="margin-top:12px;" onclick="abrirModalDocumento('${escapeHtml(filtroDocsRoteiroId)}')"><i class="fa-solid fa-plus"></i> Adicionar documento a este item</button>` : '<small>Use o botão + para adicionar uma reserva, ingresso ou comprovante.</small>';
+    container.innerHTML = `<div class="card" style="text-align:center;color:var(--text-muted);padding:28px 16px;"><i class="fa-regular fa-folder-open" style="font-size:1.8rem;margin-bottom:10px;"></i><div>Nenhum documento encontrado.</div>${addBtn}</div>`; return;
+  }
+  container.innerHTML = lista.map(d => {
+    const it = d.roteiro_id ? roteiroData.find(i => String(i.id) === String(d.roteiro_id)) : null;
+    const img = (d.mime_type || '').startsWith('image/');
+    const size = d.tamanho_bytes ? (d.tamanho_bytes / 1048576 >= 1 ? (d.tamanho_bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(d.tamanho_bytes / 1024)) + ' KB') : '';
+    return `<div class="doc-card"><i class="fa-solid ${img ? 'fa-file-image doc-file-icon image' : 'fa-file-pdf doc-file-icon'}"></i><div class="doc-info"><div class="doc-name">${escapeHtml(d.nome || d.nome_arquivo)}</div><div class="doc-meta">${escapeHtml(d.categoria)} · ${escapeHtml(d.cidade)}${it ? ' · ' + escapeHtml(it.atracao) : ''}${size ? ' · ' + size : ''}</div></div><div class="doc-actions"><button onclick="abrirArquivoDocumento('${d.id}',false)" title="Visualizar"><i class="fa-regular fa-eye"></i></button><button onclick="abrirArquivoDocumento('${d.id}',true)" title="Baixar"><i class="fa-solid fa-download"></i></button><button onclick="editarDocumento('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button><button onclick="excluirDocumento('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button></div></div>`;
+  }).join('');
+}
+function nomeArquivoSeguro(name) { return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100); }
+async function salvarEdicaoDocumento(id) {
+  const doc = documentosData.find(d => String(d.id) === String(id)); if (!doc) return;
+  const file = document.getElementById('doc-arquivo').files[0];
+  if (file) {
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) return alert('Use PDF, JPG ou PNG.');
+    if (file.size > 10 * 1024 * 1024) return alert('O arquivo ultrapassa 10 MB.');
+  }
+  const categoria = document.getElementById('doc-categoria').value, cidade = document.getElementById('doc-cidade').value;
+  if (!categoria || !cidade) return alert('Selecione a categoria e a cidade.');
+  const btn = document.getElementById('doc-submit-btn'); btn.disabled = true; btn.textContent = 'Salvando...';
+  let novoPath = null;
+  try {
+    const roteiroId = document.getElementById('doc-roteiro').value || null;
+    const item = roteiroId ? roteiroData.find(i => String(i.id) === String(roteiroId)) : null;
+    const payload = {
+      nome: document.getElementById('doc-nome').value.trim() || (file ? file.name : doc.nome_arquivo),
+      categoria, cidade, roteiro_id: roteiroId,
+      roteiro_categoria: item ? item.categoria : null, roteiro_atracao: item ? item.atracao : null
+    };
+    if (file) {
+      novoPath = `${crypto.randomUUID()}/${nomeArquivoSeguro(file.name)}`;
+      const { error: upErr } = await _supabase.storage.from('reservas').upload(novoPath, file, { contentType: file.type, upsert: false });
+      if (upErr) { novoPath = null; throw upErr; }
+      Object.assign(payload, { nome_arquivo: file.name, caminho_arquivo: novoPath, mime_type: file.type, tamanho_bytes: file.size });
+    }
+    const { data, error } = await _supabase.from('documentos').update(payload).eq('id', id).select();
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('O Supabase não autorizou a edição. Execute uma vez o SQL SUPABASE_DOCUMENTOS_EDICAO.sql e tente de novo.');
+    if (file && doc.caminho_arquivo !== novoPath) await _supabase.storage.from('reservas').remove([doc.caminho_arquivo]);
+    novoPath = null;
+    closeModal('modal-documento'); await loadAllData(false);
+  } catch (err) {
+    console.error('[Documentos]', err);
+    if (novoPath) await _supabase.storage.from('reservas').remove([novoPath]);
+    alert(`Não foi possível salvar as alterações.\n\n${err.message || 'Erro desconhecido'}`);
+  } finally { btn.disabled = false; btn.textContent = 'Salvar alterações'; }
 }
 async function handleDocumentoSubmit(e) {
   e.preventDefault(); if(!documentosDisponiveis) return alert('Configure primeiro a tabela e o Storage no Supabase.');
+  const editId = document.getElementById('doc-id').value; if (editId) return salvarEdicaoDocumento(editId);
   const file=document.getElementById('doc-arquivo').files[0]; if(!file)return;
   if(!['application/pdf','image/jpeg','image/png'].includes(file.type))return alert('Use PDF, JPG ou PNG.');
   if(file.size>10*1024*1024)return alert('O arquivo ultrapassa 10 MB.');
   const btn=document.getElementById('doc-submit-btn'); btn.disabled=true;btn.textContent='Enviando...';
   try {
-    const id=crypto.randomUUID(); const safe=file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-100); const path=`${id}/${safe}`;
+    const id=crypto.randomUUID(); const path=`${id}/${nomeArquivoSeguro(file.name)}`;
     const {error:upErr}=await _supabase.storage.from('reservas').upload(path,file,{contentType:file.type,upsert:false}); if(upErr)throw upErr;
     const roteiroId=document.getElementById('doc-roteiro').value||null; const item=roteiroId?roteiroData.find(i=>String(i.id)===String(roteiroId)):null;
     const payload={id,nome:document.getElementById('doc-nome').value.trim()||file.name,nome_arquivo:file.name,caminho_arquivo:path,mime_type:file.type,tamanho_bytes:file.size,categoria:document.getElementById('doc-categoria').value,cidade:document.getElementById('doc-cidade').value,roteiro_id:roteiroId,roteiro_categoria:item?item.categoria:null,roteiro_atracao:item?item.atracao:null};

@@ -27,6 +27,9 @@ create policy documentos_insert_authenticated on public.documentos for insert to
 drop policy if exists documentos_delete_authenticated on public.documentos;
 create policy documentos_delete_authenticated on public.documentos for delete to authenticated using (auth.uid() is not null);
 
+drop policy if exists documentos_update_authenticated on public.documentos;
+create policy documentos_update_authenticated on public.documentos for update to authenticated using (auth.uid() is not null) with check (auth.uid() is not null);
+
 -- Storage: bucket privado, acessível somente após login no app.
 drop policy if exists reservas_select_authenticated on storage.objects;
 create policy reservas_select_authenticated on storage.objects for select to authenticated using (bucket_id='reservas');
@@ -37,4 +40,4 @@ create policy reservas_delete_authenticated on storage.objects for delete to aut
 
 -- Permissões SQL da tabela para o papel autenticado (RLS continua sendo aplicada).
 grant usage on schema public to authenticated;
-grant select, insert, delete on public.documentos to authenticated;
+grant select, insert, update, delete on public.documentos to authenticated;

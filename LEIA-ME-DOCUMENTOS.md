@@ -9,6 +9,12 @@
 - Clipe discreto nos cartões elegíveis do roteiro; fica destacado quando há arquivo associado e abre a lista filtrada.
 - Visualização/download por URL temporária; bucket não público.
 
+## Novidades desta versão
+- Botão de lápis em cada documento: edita título, categoria, cidade e vínculo; arquivo opcionalmente substituído (se não escolher outro, o original é mantido).
+- Lista de vínculo organizada por DATA › CIDADE › ATRAÇÃO.
+- Filtros da aba no formato de chips (igual ao Orçamento); ao vir pelo clipe, o filtro aparece como uma etiqueta compacta com ×.
+- **Requer 1 SQL extra:** `SUPABASE_DOCUMENTOS_EDICAO.sql` (permissão de UPDATE na tabela). Quem ainda não instalou nada roda só o `SUPABASE_DOCUMENTOS.sql`, que já o inclui.
+
 ## Instalação Supabase (obrigatória antes do uso)
 1. Abra o projeto Supabase usado pelo app.
 2. Entre em **SQL Editor** → **New query**.
