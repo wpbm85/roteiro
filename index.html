@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="styles.css?v=13.0">
+  <link rel="stylesheet" href="styles.css?v=14.0">
 </head>
 <body>
 
@@ -186,9 +186,15 @@
         <div class="form-group"><label>Custo (€)</label><input type="number" step="0.01" id="rot-custo" class="form-control"></div>
         <div class="form-group"><label>Link Maps</label><input type="url" id="rot-link" class="form-control"></div>
         <div class="form-group"><label>Observações</label><input type="text" id="rot-obs" class="form-control"></div>
-        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
-          <input type="checkbox" id="rot-destaque-calendario" style="width:18px; height:18px;">
-          <label for="rot-destaque-calendario" style="margin:0;">★ Destacar no Calendário</label>
+        <div class="form-group" style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="rot-destaque-calendario" style="width:18px; height:18px;">
+            <label for="rot-destaque-calendario" style="margin:0;"><i class="fa-solid fa-star" style="color:#fbbf24;"></i> Destacar</label>
+          </span>
+          <span style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="rot-anexo" style="width:18px; height:18px;">
+            <label for="rot-anexo" style="margin:0;"><i class="fa-solid fa-paperclip"></i> Habilitar anexo</label>
+          </span>
         </div>
         <div style="display:flex; gap:8px;">
           <button type="submit" class="submit-btn" style="flex:1;">Salvar</button>
@@ -306,6 +312,6 @@
     <button class="nav-item" id="nav-btn-documentos" onclick="switchTab('documentos', this)"><i class="fa-solid fa-paperclip nav-icon"></i><span>Documentos</span></button>
   </nav>
 
-  <script src="app.js?v=15.0"></script>
+  <script src="app.js?v=16.0"></script>
 </body>
 </html>

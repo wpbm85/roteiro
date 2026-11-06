@@ -564,10 +564,14 @@ function editRoteiro(id) {
   document.getElementById("rot-link").value = item.link || "";
   document.getElementById("rot-obs").value = item.obs || "";
   document.getElementById("rot-destaque-calendario").checked = !!item.destaque_calendario;
+  document.getElementById("rot-anexo").checked = !!item.anexo;
   document.getElementById("btn-salvar-copia-roteiro").style.display = "block";
   document.getElementById("modal-roteiro").classList.add("active");
 }
 
+// Clipe só aparece em atrações com "Habilitar anexo" (ou que já tenham documento vinculado, para nunca esconder um anexo existente).
+function roteiroTemColunaAnexo() { return roteiroData.length > 0 && 'anexo' in roteiroData[0]; }
+function anexoAtivo(item) { return !!item.anexo || documentosData.some(d => String(d.roteiro_id || '') === String(item.id)); }
 function renderItemCardHtml(item) {
   let catDisplay = item.categoria === "MARCO" ? "DESTAQUE" : item.categoria;
   let funcVal = item.funcionamento || item.horario || "";
@@ -593,8 +597,9 @@ function renderItemCardHtml(item) {
   const atracaoSafe = (item.atracao || '').replace(/'/g, "\\'");
   const enderecoSafe = (item.endereco || item.regiao || '').replace(/'/g, "\\'");
   const categoriaVinculavel = ['AEROPORTO', 'DESTAQUE', 'MARCO', 'TREM', 'HOTEL', 'MUSEU', 'OUTRO'].includes(catDisplay);
-  const docsDoItem = categoriaVinculavel ? documentosData.filter(d => String(d.roteiro_id || '') === String(item.id)) : [];
+  const docsDoItem = documentosData.filter(d => String(d.roteiro_id || '') === String(item.id));
   const temDocs = docsDoItem.length > 0;
+  const mostrarClipe = anexoAtivo(item);
 
   return `
     <div class="card ${isFeito}" data-id="${item.id}" style="--bar-color: ${catBg};">
@@ -617,7 +622,7 @@ function renderItemCardHtml(item) {
                <button class="btn-act done-btn ${btnFeitoClass}" onclick="toggleDone(${item.id})" title="Check"><i class="fa-solid fa-check"></i></button>
                <button class="btn-act rota-btn ${item.incluir_rota ? 'active' : ''}" onclick="toggleSelecaoRota(${item.id})" title="Incluir na rota a pé"><i class="fa-solid fa-map-location-dot"></i></button>
                <button class="btn-act" onclick="openMaps('${linkSafe}', '${atracaoSafe}', '${enderecoSafe}')" title="Abrir no Google Maps"><i class="fa-solid fa-map-pin"></i></button>
-               ${categoriaVinculavel ? `<button class="btn-act attachment-btn ${temDocs ? 'active' : 'muted'}" onclick="abrirDocumentosDoRoteiro('${String(item.id)}')" title="${temDocs ? docsDoItem.length + ' documento(s) vinculado(s)' : 'Anexar documento'}"><i class="fa-solid fa-paperclip"></i></button>` : ''}
+               ${mostrarClipe ? `<button class="btn-act attachment-btn ${temDocs ? 'active' : 'muted'}" onclick="abrirDocumentosDoRoteiro('${String(item.id)}')" title="${temDocs ? docsDoItem.length + ' documento(s) vinculado(s)' : 'Anexar documento'}"><i class="fa-solid fa-paperclip"></i></button>` : ''}
                <button class="btn-act" onclick="editRoteiro(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
                <button class="btn-act del-btn" onclick="deleteItem(${item.id}, 'roteiro')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                <button class="btn-act drag-handle" title="Reordenar"><i class="fa-solid fa-grip-vertical"></i></button>
@@ -717,7 +722,7 @@ function nomeRoteiro(item) { return `${item.atracao || 'Item sem descrição'}${
 // Lista de vínculo organizada: DATA (cronológica) > CIDADE > ATRAÇÃO.
 // <select> nativo só tem 1 nível de grupo, então cada <optgroup> é "DD/MM DIA · CIDADE".
 function opcoesVinculoHtml() {
-  const elegiveis = roteiroData.filter(i => DOC_CATEGORIAS_ROTEIRO.includes((i.categoria || '').toUpperCase()));
+  const elegiveis = roteiroData.filter(anexoAtivo);
   const porDia = new Map();
   elegiveis.forEach(i => { const k = diaKeyDDMM(i.dia) || '__sem__'; if (!porDia.has(k)) porDia.set(k, []); porDia.get(k).push(i); });
   const dias = [...porDia.keys()].sort((a, b) => (a === '__sem__' ? 99999 : parseDateForSort(a)) - (b === '__sem__' ? 99999 : parseDateForSort(b)));
@@ -907,7 +912,8 @@ function isoMenosDias(iso, dias) { const d = new Date(iso + 'T12:00:00Z'); d.set
 function dataVisitaISO(dia) { const k = diaKeyDDMM(dia); return k ? `2027-${k.slice(3, 5)}-${k.slice(0, 2)}` : null; }
 function atualizarBadgeTodo() {
   const b = document.getElementById('todo-badge'); if (!b) return;
-  const n = todosDisponiveis ? todosData.filter(t => !t.feito).length : 0;
+  const limite = isoMenosDias(hojeISO(), -14);
+  const n = todosDisponiveis ? todosData.filter(t => !t.feito && t.data_alvo && t.data_alvo <= limite).length : 0;
   b.textContent = n > 99 ? '99+' : String(n); b.style.display = n ? 'flex' : 'none';
 }
 function renderTodo() {
@@ -1255,6 +1261,9 @@ async function handleRoteiroSubmit(e, salvarComoCopia = false) {
     obs: document.getElementById("rot-obs").value,
     destaque_calendario: document.getElementById("rot-destaque-calendario").checked
   };
+  // Só envia "anexo" se a coluna existe no banco (ou se foi marcada), para não quebrar o salvamento antes do SQL.
+  const anexoMarcado = document.getElementById("rot-anexo").checked;
+  if (roteiroTemColunaAnexo() || anexoMarcado) payload.anexo = anexoMarcado;
 
   let error;
   if(idStr) {
@@ -1265,6 +1274,7 @@ async function handleRoteiroSubmit(e, salvarComoCopia = false) {
     ({ error } = await _supabase.from('roteiro').insert([payload]));
   }
 
+  if (error && /anexo/i.test(error.message || '')) { alert('Para usar "Habilitar anexo", execute uma vez o SQL SUPABASE_ANEXO_ATRACAO.sql no Supabase.'); return; }
   if (checkError(error, 'salvar esta atração')) return;
 
   closeModal('modal-roteiro'); 
@@ -1748,12 +1758,13 @@ function renderGastos() {
   renderGastosCatChips();
 }
 
+const GASTOS_CAT_ORDEM = ["ALIMENTAÇÃO", "COMPRAS", "HOTEL", "INGRESSOS", "MERCADO", "OUTROS", "TRANSPORTE", "TREM", "VOO"];
 function renderGastosCatChips() {
   const bar = document.getElementById("gas-cat-bar");
   if (!bar) return;
   const categoriasPresentes = [...new Set(gastosData.map(g => (g.categoria || '').trim().toUpperCase()).filter(Boolean))];
   categoriasPresentes.sort((a, b) => {
-    const ia = CATEGORIAS_FINANCEIRO.indexOf(a), ib = CATEGORIAS_FINANCEIRO.indexOf(b);
+    const ia = GASTOS_CAT_ORDEM.indexOf(a), ib = GASTOS_CAT_ORDEM.indexOf(b);
     const pa = ia === -1 ? 999 : ia, pb = ib === -1 ? 999 : ib;
     if (pa !== pb) return pa - pb;
     return a.localeCompare(b);
@@ -1899,7 +1910,8 @@ const ALIASES_ROTEIRO = {
   obs: ['obs', 'observacoes', 'observações'],
   feito: ['feito'],
   destaque_calendario: ['destaque_calendario', 'destaque calendario', 'destacar no calendario'],
-  incluir_rota: ['incluir_rota', 'incluir rota']
+  incluir_rota: ['incluir_rota', 'incluir rota'],
+  anexo: ['anexo', 'habilitar anexo']
 };
 
 const ALIASES_ORCAMENTO = {
@@ -2045,7 +2057,8 @@ function converterLinhaRoteiro(row, campos, avisos, numeroLinha) {
     obs: campos.obs ? (row[campos.obs] || '').toString().trim() : '',
     feito: campos.feito ? paraBooleano(row[campos.feito]) : false,
     destaque_calendario: campos.destaque_calendario ? paraBooleano(row[campos.destaque_calendario]) : false,
-    incluir_rota: campos.incluir_rota ? paraBooleano(row[campos.incluir_rota]) : false
+    incluir_rota: campos.incluir_rota ? paraBooleano(row[campos.incluir_rota]) : false,
+    ...(campos.anexo ? { anexo: paraBooleano(row[campos.anexo]) } : {})
   };
 }
 
